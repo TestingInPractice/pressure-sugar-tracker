@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Report, Entry } from '../types';
-import { getReport, listEntries, putEntry, deleteEntry, putReport } from '../db/db';
+import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport } from '../db/db';
 import { genId } from '../logic/report-config';
 import { onEntryRecorded } from '../logic/reminders';
 import { useSettings } from '../hooks/useSettings';
@@ -55,6 +55,12 @@ export default function ReportScreen({ reportId, onBack }: Props) {
     setRenaming(false);
   };
 
+  const removeReport = async () => {
+    if (!window.confirm('Удалить отчёт со всеми записями?')) return;
+    await deleteReport(reportId);
+    onBack();
+  };
+
   return (
     <div>
       <button className="no-print" onClick={onBack}>← Назад</button>
@@ -86,6 +92,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
         <>
           <button className="no-print" onClick={() => setShowEditor(true)}>Настроить поля</button>
           <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
+          <button className="no-print" onClick={() => void removeReport()}>Удалить отчёт</button>
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button className="no-print" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
           <button className="no-print" onClick={() => window.print()}>Печать/PDF</button>

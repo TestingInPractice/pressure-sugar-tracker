@@ -87,6 +87,29 @@ it('rename keeps old name when draft is blank', async () => {
   expect(await db.reports.get('p1')).toMatchObject({ name: 'Отчёт АД' });
 });
 
+it('deletes report with entries after confirm accepted', async () => {
+  await seed();
+  await putEntry({ id: 'e1', reportId: 'p1', values: {}, createdAt: 1 });
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const onBack = vi.fn();
+  render(<ReportScreen reportId="p1" onBack={onBack} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Удалить отчёт' }));
+  await waitFor(async () => expect(await db.reports.get('p1')).toBeUndefined());
+  expect(await db.entries.count()).toBe(0);
+  expect(onBack).toHaveBeenCalledTimes(1);
+  confirmSpy.mockRestore();
+});
+
+it('keeps report when delete confirm declined', async () => {
+  await seed();
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Удалить отчёт' }));
+  await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+  expect(await db.reports.get('p1')).toBeTruthy();
+  confirmSpy.mockRestore();
+});
+
 it('index.css contains @media print rules per brief', () => {
   const css = readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf-8');
   expect(css).toContain('@media print');

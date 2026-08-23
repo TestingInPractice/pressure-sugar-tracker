@@ -45,7 +45,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
 
   return (
     <div>
-      <button onClick={onBack}>← Назад</button>
+      <button className="no-print" onClick={onBack}>← Назад</button>
       <h2>{report.name}</h2>
       {showEditor ? (
         <FieldsEditor
@@ -58,10 +58,11 @@ export default function ReportScreen({ reportId, onBack }: Props) {
         />
       ) : (
         <>
-          <button onClick={() => setShowEditor(true)}>Настроить поля</button>
-          <button onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
-          <button onClick={() => setShowReminder(v => !v)}>Напоминание</button>
-          <button onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
+          <button className="no-print" onClick={() => setShowEditor(true)}>Настроить поля</button>
+          <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
+          <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
+          <button className="no-print" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
+          <button className="no-print" onClick={() => window.print()}>Печать/PDF</button>
           {showReminder && settings && (
             <ReminderPanel
               report={report}
@@ -78,6 +79,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
               onCancel={() => { setEditingEntry(null); setShowForm(false); }}
             />
           )}
+          <h2 className="print-title">{report.name}</h2>
           <EntriesTable
             report={report}
             entries={entries}

@@ -113,3 +113,14 @@ body {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+@media print {
+  body { margin: 0; }
+  .app-header, .tabbar, .no-print { display: none !important; }
+  .print-title { display: block !important; font-size: 18pt; margin-bottom: 8pt; }
+  .entries-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .entries-table th, .entries-table td { border: 1pt solid #333; padding: 2pt 4pt; overflow-wrap: anywhere; }
+  /* широкие таблицы масштабируются по ширине листа */
+  .print-root { zoom: 0.8; }
+}
+.print-title { display: none; }

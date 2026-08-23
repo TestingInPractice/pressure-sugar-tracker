@@ -247,6 +247,23 @@ em.error {
   margin: 0;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.title-row h2 {
+  margin: 0;
+}
+
+.rename-row {
+  flex-direction: row;
+  align-items: center;
+  padding-bottom: 12px;
+}
+
 @media print {
   body { margin: 0; }
   .app-header, .tabbar, .no-print { display: none !important; }

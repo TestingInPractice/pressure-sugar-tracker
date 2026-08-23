@@ -18,6 +18,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
   const { settings } = useSettings();
 
   useEffect(() => {
@@ -44,10 +46,33 @@ export default function ReportScreen({ reportId, onBack }: Props) {
     setEntries(await listEntries(reportId));
   };
 
+  const saveRename = async () => {
+    const name = nameDraft.trim();
+    if (!name) return;
+    const updated = { ...report, name, updatedAt: Date.now() };
+    await putReport(updated);
+    setReport(updated);
+    setRenaming(false);
+  };
+
   return (
     <div>
       <button className="no-print" onClick={onBack}>← Назад</button>
-      <h2 className="no-print">{report.name}</h2>
+      {renaming ? (
+        <form className="rename-row no-print"
+              onSubmit={e => { e.preventDefault(); void saveRename(); }}>
+          <input aria-label="Название отчёта" value={nameDraft} autoFocus
+                 onChange={e => setNameDraft(e.target.value)} />
+          <button type="submit" className="primary" disabled={!nameDraft.trim()}>✓</button>
+          <button type="button" onClick={() => setRenaming(false)}>✕</button>
+        </form>
+      ) : (
+        <div className="title-row">
+          <h2 className="no-print">{report.name}</h2>
+          <button className="no-print" aria-label="Переименовать отчёт"
+                  onClick={() => { setNameDraft(report.name); setRenaming(true); }}>✎</button>
+        </div>
+      )}
       {showEditor ? (
         <FieldsEditor
           report={report}

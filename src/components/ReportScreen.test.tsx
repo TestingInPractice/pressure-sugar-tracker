@@ -62,6 +62,31 @@ it('removeEntry deletes after confirm accepted', async () => {
   confirmSpy.mockRestore();
 });
 
+it('renames report via inline editor', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Переименовать отчёт' }));
+  const input = screen.getByLabelText('Название отчёта');
+  expect(input).toHaveValue('Отчёт АД');
+  fireEvent.change(input, { target: { value: 'Утро 23 августа' } });
+  fireEvent.click(screen.getByRole('button', { name: '✓' }));
+  await waitFor(async () => {
+    const r = await db.reports.get('p1');
+    expect(r?.name).toBe('Утро 23 августа');
+  });
+  const headings = await screen.findAllByRole('heading', { name: 'Утро 23 августа' });
+  expect(headings.length).toBeGreaterThan(0);
+});
+
+it('rename keeps old name when draft is blank', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Переименовать отчёт' }));
+  fireEvent.change(screen.getByLabelText('Название отчёта'), { target: { value: '   ' } });
+  fireEvent.click(screen.getByRole('button', { name: '✓' }));
+  expect(await db.reports.get('p1')).toMatchObject({ name: 'Отчёт АД' });
+});
+
 it('index.css contains @media print rules per brief', () => {
   const css = readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf-8');
   expect(css).toContain('@media print');

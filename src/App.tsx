@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import MasterSwitch from './components/MasterSwitch';
 import ReportsTab from './components/ReportsTab';
 import ArchiveTab from './components/ArchiveTab';
 import ReportScreen from './components/ReportScreen';
+import MoreTab from './components/MoreTab';
 import { useSettings } from './hooks/useSettings';
 import { useReminderEngine } from './hooks/useReminderEngine';
+import { listReports } from './db/db';
 import { APP_TITLE } from './constants';
 
 type Tab = 'reports' | 'archive' | 'more';
@@ -13,8 +15,18 @@ export default function App() {
   const { settings, setMasterOn } = useSettings();
   const [tab, setTab] = useState<Tab>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
+  const [, setDataVersion] = useState(0);
   const masterOn = settings?.masterOn ?? false;
   const { dueTitles, dismissDue } = useReminderEngine(masterOn);
+
+  useEffect(() => {
+    void (async () => {
+      const [active, archived] = await Promise.all([listReports(false), listReports(true)]);
+      if (active.length === 0 && archived.length === 0) {
+        if (window.confirm('База пуста. Импортировать резервную копию?')) setTab('more');
+      }
+    })();
+  }, []);
 
   const toggleMaster = (on: boolean) => {
     if (on) {
@@ -44,7 +56,7 @@ export default function App() {
           <>
             {tab === 'reports' && <ReportsTab openReport={setOpenReportId} />}
             {tab === 'archive' && <ArchiveTab openReport={setOpenReportId} />}
-            {tab === 'more' && <p>Бэкапы (в разработке)</p>}
+            {tab === 'more' && <MoreTab onDataChanged={() => setDataVersion(v => v + 1)} />}
           </>
         )}
       </main>

@@ -33,6 +33,10 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
           ) : f.type === 'number' ? (
             <input inputMode="decimal" value={String(values[f.id] ?? '')}
                    onChange={e => set(f.id, e.target.value)} />
+          ) : f.unit ? (
+            <input type="text" placeholder={f.name === 'Давление' ? '120/70/100' : ''}
+                   value={String(values[f.id] ?? '')}
+                   onChange={e => set(f.id, e.target.value)} />
           ) : (
             <textarea value={String(values[f.id] ?? '')}
                       onChange={e => set(f.id, e.target.value)} />

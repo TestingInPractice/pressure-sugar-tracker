@@ -15,7 +15,7 @@ export function makeDefaultFields(): Field[] {
   return [
     mkField('Номер', 'number'),
     mkField('Дата и время', 'datetime', undefined, true),
-    mkField('Давление', 'number', 'мм рт.ст.'),
+    mkField('Давление', 'text', 'мм рт.ст.'),
     mkField('Сахар', 'number', 'ммоль/л'),
     mkField('Примечание', 'text'),
   ];

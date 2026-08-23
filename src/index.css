@@ -114,6 +114,107 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Форма записи и панели: каждое поле с новой строки */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+form label {
+  display: block;
+}
+
+form input:not([type='checkbox']),
+form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 16px; /* 16px+ — чтобы iOS не зумил при фокусе */
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+}
+
+form textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+form button {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+em.error {
+  color: #ff3b30;
+  font-style: normal;
+  font-size: 0.85rem;
+  display: block;
+  margin-top: 4px;
+}
+
+/* Редактор полей отчёта */
+.fields-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.fields-editor h3 {
+  margin: 0;
+}
+
+.fields-editor fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid #e5e5ea;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.fields-editor input,
+.fields-editor select {
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-size: 16px;
+  border: 1px solid #c7c7cc;
+  border-radius: 6px;
+}
+
+/* Панель напоминаний */
+.reminder-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.reminder-panel label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-panel input[type='datetime-local'] {
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 16px;
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+}
+
+.hint {
+  color: #8e8e93;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 @media print {
   body { margin: 0; }
   .app-header, .tabbar, .no-print { display: none !important; }

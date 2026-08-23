@@ -7,6 +7,8 @@ it('default template matches spec', () => {
   expect(fields.every(f => f.width === 30)).toBe(true);
   const dt = fields.find(f => f.type === 'datetime')!;
   expect(dt.required).toBe(true);
+  const pressure = fields.find(f => f.name === 'Давление')!;
+  expect(pressure.type).toBe('text');
 });
 
 it('creates draft report', () => {

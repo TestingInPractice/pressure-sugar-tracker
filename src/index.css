@@ -102,3 +102,10 @@ body {
   color: #007aff;
   font-weight: 600;
 }
+
+/* Таблица записей: перенос длинного текста внутри ячейки */
+.wrap-cell {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  vertical-align: top;
+}

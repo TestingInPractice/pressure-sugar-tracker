@@ -3,9 +3,11 @@ import type { Report, Entry } from '../types';
 import { getReport, listEntries, putEntry, deleteEntry, putReport } from '../db/db';
 import { genId } from '../logic/report-config';
 import { onEntryRecorded } from '../logic/reminders';
+import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
 import FieldsEditor from './FieldsEditor';
+import ReminderPanel from './ReminderPanel';
 
 interface Props { reportId: string; onBack: () => void }
 
@@ -15,6 +17,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
+  const { settings } = useSettings();
 
   useEffect(() => {
     void getReport(reportId).then(r => setReport(r ?? null));
@@ -55,7 +59,15 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       ) : (
         <>
           <button onClick={() => setShowEditor(true)}>Настроить поля</button>
+          <button onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
+          {showReminder && settings && (
+            <ReminderPanel
+              report={report}
+              masterOn={settings.masterOn}
+              onChanged={() => { void getReport(reportId).then(r => r && setReport(r)); }}
+            />
+          )}
           {showForm && (
             <EntryForm
               key={editingEntry?.id ?? 'new'}

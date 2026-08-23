@@ -34,3 +34,16 @@ export function onEntryRecorded(): ReminderState {
 export function onReconfigured(): ReminderState {
   return { repeatsDone: 0 };
 }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Offset-aware ISO → значение для <input type="datetime-local"> в ЛОКАЛЬНЫХ компонентах. */
+export function toLocalInputValue(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return (
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  );
+}

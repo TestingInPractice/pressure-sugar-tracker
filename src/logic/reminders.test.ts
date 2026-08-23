@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDue, onFired } from './reminders';
+import { computeDue, onFired, toLocalInputValue } from './reminders';
 import { MAX_REPEATS, REPEAT_INTERVAL_MIN } from '../constants';
 
 const T0 = Date.parse('2026-08-23T09:00:00Z');
@@ -45,5 +45,21 @@ describe('onFired', () => {
     expect(onFired(undefined, 1).repeatsDone).toBe(1);
     expect(onFired({ repeatsDone: 2 }, 9).repeatsDone).toBe(3);
     expect(onFired({ repeatsDone: 2 }, 9).lastNotifiedAt).toBe(9);
+  });
+});
+
+describe('toLocalInputValue', () => {
+  it('round-trips offset-aware ISO through local datetime-local value (TZ-agnostic)', () => {
+    const iso = new Date('2026-08-24T06:00:00.000Z').toISOString();
+    expect(new Date(toLocalInputValue(iso)).toISOString()).toBe(iso);
+  });
+  it('maps undefined and empty string to empty string', () => {
+    expect(toLocalInputValue(undefined)).toBe('');
+    expect(toLocalInputValue('')).toBe('');
+  });
+  it('formats LOCAL components, not UTC wall-clock', () => {
+    const iso = new Date('2026-08-24T06:00:00.000Z').toISOString();
+    const v = toLocalInputValue(iso);
+    expect(v).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
 });

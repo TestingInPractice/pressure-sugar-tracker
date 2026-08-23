@@ -110,6 +110,25 @@ it('keeps report when delete confirm declined', async () => {
   confirmSpy.mockRestore();
 });
 
+it('print range filters entries by datetime field', async () => {
+  await putReport({ id: 'p2', name: 'Р2',
+    fields: [{ id: 'd1', name: 'Дата и время', type: 'datetime', required: true, width: 30 }],
+    archived: false, createdAt: 1, updatedAt: 1 });
+  await putEntry({ id: 'e1', reportId: 'p2', values: { d1: '2026-08-23T19:00' }, createdAt: 1 });
+  await putEntry({ id: 'e2', reportId: 'p2', values: { d1: '2026-09-01T10:00' }, createdAt: 2 });
+  const printSpy = vi.fn();
+  vi.stubGlobal('print', printSpy);
+  render(<ReportScreen reportId="p2" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  expect(await screen.findByLabelText('С')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-08-31' } });
+  await waitFor(() => expect(screen.queryByText('01.09 10:00')).toBeNull());
+  expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Печать' }));
+  expect(printSpy).toHaveBeenCalledTimes(1);
+  vi.unstubAllGlobals();
+});
+
 it('index.css contains @media print rules per brief', () => {
   const css = readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf-8');
   expect(css).toContain('@media print');

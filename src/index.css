@@ -264,6 +264,20 @@ em.error {
   padding-bottom: 12px;
 }
 
+.range-row {
+  display: flex;
+  gap: 8px;
+}
+
+.range-row input {
+  flex: 1;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
 @media print {
   body { margin: 0; }
   .app-header, .tabbar, .no-print { display: none !important; }

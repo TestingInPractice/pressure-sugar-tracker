@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Report, Entry } from '../types';
 import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport } from '../db/db';
 import { genId } from '../logic/report-config';
+import { datetimeFieldId, filterByRange } from '../logic/print-filter';
 import { onEntryRecorded } from '../logic/reminders';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
@@ -20,6 +21,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [showReminder, setShowReminder] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [showRange, setShowRange] = useState(false);
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const { settings } = useSettings();
 
   useEffect(() => {
@@ -28,6 +31,11 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   }, [reportId]);
 
   if (!report) return <p>Не найден</p>;
+
+  const dtFieldId = datetimeFieldId(report.fields);
+  const visibleEntries = filterByRange(entries, dtFieldId, range);
+  const setRangePart = (part: 'from' | 'to', value: string) =>
+    setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
 
   const saveEntry = async (values: Record<string, string | number>) => {
     await putEntry({ id: editingEntry?.id ?? genId('ent'), reportId, values,
@@ -95,7 +103,24 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <button className="no-print" onClick={() => void removeReport()}>Удалить отчёт</button>
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button className="no-print" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
-          <button className="no-print" onClick={() => window.print()}>Печать/PDF</button>
+          <button className="no-print"
+                  onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>
+          {showRange && (
+            <form className="print-range no-print"
+                  onSubmit={e => { e.preventDefault(); window.print(); }}>
+              <div className="range-row">
+                <input type="date" aria-label="С" value={range?.from ?? ''}
+                       onChange={e => setRangePart('from', e.target.value)} />
+                <input type="date" aria-label="По" value={range?.to ?? ''}
+                       onChange={e => setRangePart('to', e.target.value)} />
+              </div>
+              <div className="btn-row">
+                <button type="submit" className="primary">Печать</button>
+                <button type="button" onClick={() => setRange(null)}>Сбросить</button>
+                <button type="button" onClick={() => setShowRange(false)}>Закрыть</button>
+              </div>
+            </form>
+          )}
           {showReminder && settings && (
             <ReminderPanel
               report={report}
@@ -115,7 +140,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <h2 className="print-title">{report.name}</h2>
           <EntriesTable
             report={report}
-            entries={entries}
+            entries={visibleEntries}
             onEdit={e => { setEditingEntry(e); setShowForm(true); }}
             onDelete={e => void removeEntry(e)}
           />

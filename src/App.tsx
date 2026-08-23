@@ -44,7 +44,7 @@ export default function App() {
         )}
       </header>
       {dueTitles.length > 0 && (
-        <div className="due-banner" role="alert">
+        <div className="due-banner no-print" role="alert">
           <span>Пора внести измерения: {dueTitles.join(', ')}</span>
           <button onClick={dismissDue}>Скрыть</button>
         </div>

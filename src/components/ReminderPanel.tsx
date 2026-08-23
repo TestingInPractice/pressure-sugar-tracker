@@ -38,12 +38,12 @@ export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
     <section className="reminder-panel no-print">
       {!masterOn && <p className="hint">Рубильник напоминаний выключен — напоминания молчат.</p>}
       <label>
-        <input type="checkbox" checked={rem?.enabled ?? false} disabled={!masterOn}
+        <input type="checkbox" checked={rem?.enabled ?? false} disabled={!masterOn || !dt}
                onChange={e => void persist(e.target.checked)} />
         Напоминание о заполнении
       </label>
       <input type="datetime-local" value={dt} onChange={e => setDt(e.target.value)} />
-      <button onClick={downloadIcs} disabled={!dt}>
+      <button onClick={downloadIcs} disabled={!dt || !masterOn}>
         Добавить в Календарь (.ics)
       </button>
       <p className="hint">Повтор внутри приложения: до 3 раз каждые 10 минут, пока запись не внесена.</p>

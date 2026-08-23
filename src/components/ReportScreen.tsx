@@ -39,6 +39,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   };
 
   const removeEntry = async (e: Entry) => {
+    if (!window.confirm('Удалить эту запись?')) return;
     await deleteEntry(e.id);
     setEntries(await listEntries(reportId));
   };
@@ -46,7 +47,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   return (
     <div>
       <button className="no-print" onClick={onBack}>← Назад</button>
-      <h2>{report.name}</h2>
+      <h2 className="no-print">{report.name}</h2>
       {showEditor ? (
         <FieldsEditor
           report={report}

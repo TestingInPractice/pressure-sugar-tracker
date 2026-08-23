@@ -24,6 +24,18 @@ export function parseImport(text: string): Snapshot {
   if (!settings || !Array.isArray(reports) || !Array.isArray(entries)) {
     throw new BackupError('В файле нет данных отчётов');
   }
+  const isValidReport = (r: unknown): boolean =>
+    typeof r === 'object' && r !== null &&
+    typeof (r as { id?: unknown }).id === 'string' &&
+    Array.isArray((r as { fields?: unknown }).fields);
+  const isValidEntry = (e: unknown): boolean =>
+    typeof e === 'object' && e !== null &&
+    typeof (e as { id?: unknown }).id === 'string' &&
+    typeof (e as { values?: unknown }).values === 'object' &&
+    (e as { values?: unknown }).values !== null;
+  if (!reports.every(isValidReport) || !entries.every(isValidEntry)) {
+    throw new BackupError('Структура файла не соответствует формату бэкапа');
+  }
   return { settings, reports, entries } as Snapshot;
 }
 

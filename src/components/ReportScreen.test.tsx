@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ReportScreen from './ReportScreen';
-import { db, putReport } from '../db/db';
+import { db, putReport, putEntry } from '../db/db';
 
 beforeEach(async () => { await db.delete(); await db.open(); });
 
@@ -38,6 +38,28 @@ it('has hidden .print-title heading and .no-print on action buttons', async () =
   expect(document.querySelector('section.no-print')).not.toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Настроить поля' }));
   expect(document.querySelector('.fields-editor.no-print')).not.toBeNull();
+});
+
+it('removeEntry does NOT delete when confirm is declined', async () => {
+  await seed();
+  await putEntry({ id: 'e1', reportId: 'p1', values: {}, createdAt: 1 });
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '🗑' }));
+  await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+  expect(await db.entries.count()).toBe(1);
+  confirmSpy.mockRestore();
+});
+
+it('removeEntry deletes after confirm accepted', async () => {
+  await seed();
+  await putEntry({ id: 'e1', reportId: 'p1', values: {}, createdAt: 1 });
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '🗑' }));
+  await waitFor(async () => expect(await db.entries.count()).toBe(0));
+  expect(await screen.findByText('Нет записей')).toBeInTheDocument();
+  confirmSpy.mockRestore();
 });
 
 it('index.css contains @media print rules per brief', () => {

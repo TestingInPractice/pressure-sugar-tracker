@@ -13,12 +13,30 @@ const fields: Field[] = [
 const entry: Entry = { id: 'e1', reportId: 'r', values: { f1: 120, f2: 'утром' }, createdAt: 5 };
 
 describe('EntriesTable + EntryForm', () => {
-  it('renders rows with fixed column widths and wraps values', () => {
+  it('renders rows with proportional column widths and wraps values', () => {
     render(<EntriesTable report={{ fields }} entries={[entry]} onEdit={() => {}} onDelete={() => {}} />);
     expect(screen.getByText('120')).toBeInTheDocument();
     expect(screen.getByText('утром')).toBeInTheDocument();
+    const header = screen.getByText(/Давление/).closest('th')!;
+    expect(header).toHaveStyle({ width: '50%' });
     const cell = screen.getByText('утром').closest('td')!;
-    expect(cell).toHaveStyle({ maxWidth: '30ch' });
+    expect(cell).toHaveClass('wrap-cell');
+    expect(cell).not.toHaveStyle({ maxWidth: '30ch' });
+  });
+
+  it('formats datetime values compactly', () => {
+    const dtFields: Field[] = [
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+    ];
+    render(
+      <EntriesTable
+        report={{ fields: dtFields }}
+        entries={[{ id: 'e2', reportId: 'r', values: { d: '2026-08-23T19:00' }, createdAt: 6 }]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
   });
 
   it('form validates required fields before save', async () => {

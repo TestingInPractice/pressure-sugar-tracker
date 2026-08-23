@@ -112,6 +112,38 @@ body {
 .entries-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 0 16px 16px;
+}
+
+/* Таблица записей: всегда умещается по ширине экрана */
+.entries-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.entries-table th,
+.entries-table td {
+  padding: 6px;
+  font-size: 14px;
+  border-bottom: 1px solid #e5e5ea;
+  overflow-wrap: anywhere;
+  text-align: left;
+  vertical-align: top;
+}
+
+.entries-table th {
+  color: #8e8e93;
+  font-weight: 600;
+}
+
+.actions-col {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.actions-col button {
+  min-height: 36px;
+  font-size: 16px;
 }
 
 /* Форма записи и панели: каждое поле с новой строки */

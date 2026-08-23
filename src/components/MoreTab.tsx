@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { getAllData, replaceEverything } from '../db/db';
 import { buildExportJson, parseImport, backupFilename, BackupError } from '../logic/backup';
+import ShortcutHelp from './ShortcutHelp';
 
 interface Props { onDataChanged: () => void }
 
@@ -49,6 +50,16 @@ export default function MoreTab({ onDataChanged }: Props) {
       </label>
       {error && <p className="error">{error}</p>}
       <p className="hint">Храните файл в «Файлах» или iCloud Drive. После переустановки приложения импортируйте его — данные восстановятся.</p>
+      <hr />
+      <section className="alarm-help">
+        <h2>Будильник в «Часах»</h2>
+        <p className="hint">
+          В отчёте откройте «Напоминание», выберите время и нажмите
+          «⏰ Поставить будильник в Часах» — телефон зазвонит как от обычного
+          будильника, даже если приложение закрыто.
+        </p>
+        <ShortcutHelp />
+      </section>
     </div>
   );
 }

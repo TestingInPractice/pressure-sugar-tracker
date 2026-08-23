@@ -43,3 +43,10 @@ it('import rejects valid JSON with junk element shapes and keeps DB untouched', 
   expect(await db.reports.count()).toBe(0);
   expect(await db.entries.count()).toBe(0);
 });
+
+it('shows native alarm setup instructions', () => {
+  render(<MoreTab onDataChanged={() => {}} />);
+  expect(screen.getByText('Будильник в «Часах»')).toBeInTheDocument();
+  expect(screen.getByText(/Как создать команду «Будильник»/)).toBeInTheDocument();
+  expect(screen.getByText(/Поставить будильник в Часах/)).toBeInTheDocument();
+});

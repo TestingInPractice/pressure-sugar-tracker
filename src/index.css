@@ -292,6 +292,11 @@ em.error {
   padding-left: 20px;
 }
 
+.alarm-help h2 {
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
 @media print {
   body { margin: 0; }
   .app-header, .tabbar, .no-print { display: none !important; }

@@ -23,7 +23,7 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
   };
 
   return (
-    <form onSubmit={e => { e.preventDefault(); submit(); }}>
+    <form className="no-print" onSubmit={e => { e.preventDefault(); submit(); }}>
       {fields.map(f => (
         <label key={f.id}>
           {f.name}{f.unit ? `, ${f.unit}` : ''}{f.required ? ' *' : ''}

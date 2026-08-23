@@ -47,7 +47,7 @@ export default function FieldsEditor({ report, onSaved }: Props) {
   };
 
   return (
-    <div className="fields-editor">
+    <div className="fields-editor no-print">
       <h3>Настройка полей</h3>
       {fields.map(f => (
         <fieldset key={f.id}>

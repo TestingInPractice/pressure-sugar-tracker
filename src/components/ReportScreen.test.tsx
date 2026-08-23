@@ -32,6 +32,12 @@ it('has hidden .print-title heading and .no-print on action buttons', async () =
     const btn = screen.getByRole('button', { name });
     expect(btn.className).toContain('no-print');
   }
+  fireEvent.click(screen.getByRole('button', { name: '+ Запись' }));
+  expect(document.querySelector('form.no-print')).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Напоминание' }));
+  expect(document.querySelector('section.no-print')).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Настроить поля' }));
+  expect(document.querySelector('.fields-editor.no-print')).not.toBeNull();
 });
 
 it('index.css contains @media print rules per brief', () => {

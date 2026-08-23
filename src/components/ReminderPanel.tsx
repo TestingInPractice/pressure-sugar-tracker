@@ -35,7 +35,7 @@ export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
   };
 
   return (
-    <section className="reminder-panel">
+    <section className="reminder-panel no-print">
       {!masterOn && <p className="hint">Рубильник напоминаний выключен — напоминания молчат.</p>}
       <label>
         <input type="checkbox" checked={rem?.enabled ?? false} disabled={!masterOn}

@@ -9,7 +9,8 @@ interface Props {
 
 export default function EntriesTable({ report, entries, onEdit, onDelete }: Props) {
   return (
-    <table className="entries-table">
+    <div className="entries-scroll">
+      <table className="entries-table">
       <thead>
         <tr>
           {report.fields.map(f => (
@@ -39,6 +40,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
           <tr><td colSpan={report.fields.length + 1}>Нет записей</td></tr>
         )}
       </tbody>
-    </table>
+      </table>
+    </div>
   );
 }

@@ -44,6 +44,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       <button onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
       {showForm && (
         <EntryForm
+          key={editingEntry?.id ?? 'new'}
           fields={report.fields}
           initial={editingEntry?.values}
           onSave={v => void saveEntry(v)}

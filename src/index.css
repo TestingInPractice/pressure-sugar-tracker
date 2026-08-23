@@ -109,3 +109,7 @@ body {
   white-space: normal;
   vertical-align: top;
 }
+.entries-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

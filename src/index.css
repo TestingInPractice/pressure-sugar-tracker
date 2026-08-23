@@ -278,6 +278,20 @@ em.error {
   gap: 8px;
 }
 
+.shortcut-help {
+  font-size: 13px;
+}
+
+.shortcut-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.shortcut-help ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
 @media print {
   body { margin: 0; }
   .app-header, .tabbar, .no-print { display: none !important; }

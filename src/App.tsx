@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MasterSwitch from './components/MasterSwitch';
 import ReportsTab from './components/ReportsTab';
+import ArchiveTab from './components/ArchiveTab';
 import ReportScreen from './components/ReportScreen';
 import { useSettings } from './hooks/useSettings';
 import { useReminderEngine } from './hooks/useReminderEngine';
@@ -42,7 +43,7 @@ export default function App() {
         ) : (
           <>
             {tab === 'reports' && <ReportsTab openReport={setOpenReportId} />}
-            {tab === 'archive' && <p>Архив (в разработке)</p>}
+            {tab === 'archive' && <ArchiveTab openReport={setOpenReportId} />}
             {tab === 'more' && <p>Бэкапы (в разработке)</p>}
           </>
         )}

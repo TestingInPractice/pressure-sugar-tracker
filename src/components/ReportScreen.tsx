@@ -59,6 +59,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       ) : (
         <>
           <button onClick={() => setShowEditor(true)}>Настроить поля</button>
+          <button onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
           <button onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
           {showReminder && settings && (

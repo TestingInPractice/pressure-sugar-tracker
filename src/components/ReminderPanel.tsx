@@ -23,7 +23,7 @@ export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
 
   const downloadIcs = () => {
     const blob = new Blob(
-      [buildIcs(`${report.id}-${Date.now()}`, `Внести измерения: ${report.name}`, new Date(dt).toISOString())],
+      [buildIcs(`${report.id}-${rem?.datetime ?? new Date(dt).toISOString()}`, `Внести измерения: ${report.name}`, new Date(dt).toISOString())],
       { type: 'text/calendar' },
     );
     const url = URL.createObjectURL(blob);

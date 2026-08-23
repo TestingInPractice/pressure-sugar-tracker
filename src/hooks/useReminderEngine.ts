@@ -32,7 +32,9 @@ export function useReminderEngine(enabled: boolean) {
   const [dueTitles, setDueTitles] = useState<string[]>([]);
   useEffect(() => {
     if (!enabled) return;
+    let alive = true;
     const notify: NotifyFn = title => {
+      if (!alive) return;
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(`Внесите измерения: ${title}`);
       }
@@ -41,7 +43,7 @@ export function useReminderEngine(enabled: boolean) {
     const tick = () => void runEngineTick(Date.now(), notify).catch(console.error);
     tick();
     const timer = window.setInterval(tick, 30_000);
-    return () => window.clearInterval(timer);
+    return () => { alive = false; window.clearInterval(timer); };
   }, [enabled]);
   return { dueTitles, dismissDue: () => setDueTitles([]) };
 }

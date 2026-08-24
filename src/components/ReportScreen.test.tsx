@@ -110,6 +110,27 @@ it('keeps report when delete confirm declined', async () => {
   confirmSpy.mockRestore();
 });
 
+it('prefills next row number for new entry and restores it if cleared', async () => {
+  await putReport({ id: 'p3', name: 'Р3',
+    fields: [
+      { id: 'n', name: 'Номер', type: 'number', required: false, width: 30 },
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+    ],
+    archived: false, createdAt: 1, updatedAt: 1 });
+  await putEntry({ id: 'e9', reportId: 'p3', values: { n: 7, d: '2026-08-23T10:00' }, createdAt: 1 });
+  render(<ReportScreen reportId="p3" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
+  expect(await screen.findByLabelText('Номер')).toHaveValue('8');
+  fireEvent.change(screen.getByLabelText('Номер'), { target: { value: '' } });
+  fireEvent.change(screen.getByLabelText(/Дата и время/), { target: { value: '2026-08-24T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(async () => {
+    const rows = await db.entries.where('reportId').equals('p3').toArray();
+    const saved = rows.find(r => r.values.d === '2026-08-24T09:00');
+    expect(saved?.values.n).toBe(8);
+  });
+});
+
 it('print range filters entries by datetime field', async () => {
   await putReport({ id: 'p2', name: 'Р2',
     fields: [{ id: 'd1', name: 'Дата и время', type: 'datetime', required: true, width: 30 }],

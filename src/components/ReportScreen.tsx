@@ -3,6 +3,7 @@ import type { Report, Entry } from '../types';
 import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport } from '../db/db';
 import { genId } from '../logic/report-config';
 import { datetimeFieldId, filterByRange } from '../logic/print-filter';
+import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
 import { onEntryRecorded } from '../logic/reminders';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
@@ -33,12 +34,21 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   if (!report) return <p>Не найден</p>;
 
   const dtFieldId = datetimeFieldId(report.fields);
+  const numId = numberingFieldId(report.fields);
   const visibleEntries = filterByRange(entries, dtFieldId, range);
   const setRangePart = (part: 'from' | 'to', value: string) =>
     setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
 
   const saveEntry = async (values: Record<string, string | number>) => {
-    await putEntry({ id: editingEntry?.id ?? genId('ent'), reportId, values,
+    const vals = { ...values };
+    const nid = numberingFieldId(report.fields);
+    if (!editingEntry && nid !== undefined) {
+      const cur = vals[nid];
+      if (cur === undefined || String(cur).trim() === '') {
+        vals[nid] = nextEntryNumber(entries, nid) ?? 1;
+      }
+    }
+    await putEntry({ id: editingEntry?.id ?? genId('ent'), reportId, values: vals,
                      createdAt: editingEntry?.createdAt ?? Date.now() });
     if (report.reminder) {
       await putReport({ ...report, reminderState: onEntryRecorded(), updatedAt: Date.now() });
@@ -132,7 +142,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
             <EntryForm
               key={editingEntry?.id ?? 'new'}
               fields={report.fields}
-              initial={editingEntry?.values}
+              initial={editingEntry?.values ??
+                       (numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : undefined)}
               onSave={v => void saveEntry(v)}
               onCancel={() => { setEditingEntry(null); setShowForm(false); }}
             />

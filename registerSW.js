@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/pressure-sugar-tracker/sw.js', { scope: '/pressure-sugar-tracker/' })})}

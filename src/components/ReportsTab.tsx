@@ -17,7 +17,7 @@ export default function ReportsTab({ openReport }: Props) {
   }, [reload]);
 
   return (
-    <div>
+    <div className="reports-tab">
       <ul className="report-list">
         {reports.map(r => (
           <li key={r.id}>

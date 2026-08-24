@@ -89,6 +89,7 @@ export default function FieldsEditor({ report, onSaved }: Props) {
           />
           <button
             type="button"
+            className="btn-danger"
             aria-label="Удалить поле"
             disabled={fields.length === 1}
             onClick={() => removeField(f.id)}

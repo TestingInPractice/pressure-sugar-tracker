@@ -80,8 +80,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   };
 
   return (
-    <div>
-      <button className="no-print" onClick={onBack}>← Назад</button>
+    <div className="screen">
+      <button className="no-print btn-back" onClick={onBack}>← Назад</button>
       {renaming ? (
         <form className="rename-row no-print"
               onSubmit={e => { e.preventDefault(); void saveRename(); }}>
@@ -93,7 +93,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       ) : (
         <div className="title-row">
           <h2 className="no-print">{report.name}</h2>
-          <button className="no-print" aria-label="Переименовать отчёт"
+          <button className="no-print btn-icon" aria-label="Переименовать отчёт"
                   onClick={() => { setNameDraft(report.name); setRenaming(true); }}>✎</button>
         </div>
       )}
@@ -110,9 +110,9 @@ export default function ReportScreen({ reportId, onBack }: Props) {
         <>
           <button className="no-print" onClick={() => setShowEditor(true)}>Настроить поля</button>
           <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
-          <button className="no-print" onClick={() => void removeReport()}>Удалить отчёт</button>
+          <button className="no-print btn-danger" onClick={() => void removeReport()}>Удалить отчёт</button>
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
-          <button className="no-print" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
+          <button className="no-print primary" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
           <button className="no-print"
                   onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>
           {showRange && (

@@ -40,7 +40,7 @@ export default function MoreTab({ onDataChanged }: Props) {
   };
 
   return (
-    <div>
+    <div className="more-tab">
       <button className="primary" onClick={() => void exportBackup()}>Экспорт бэкапа</button>
       <hr />
       <label>

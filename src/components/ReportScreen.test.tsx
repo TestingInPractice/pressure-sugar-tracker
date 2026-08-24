@@ -155,8 +155,11 @@ it('index.css contains @media print rules per brief', () => {
   expect(css).toContain('@media print');
   expect(css).toContain('.app-header, .tabbar, .no-print { display: none !important; }');
   expect(css).toContain('.print-title { display: block !important; font-size: 18pt; margin-bottom: 8pt; }');
-  expect(css).toContain('.entries-table { width: 100%; border-collapse: collapse; table-layout: fixed; }');
-  expect(css).toContain('.entries-table th, .entries-table td { border: 1pt solid #333; padding: 2pt 4pt; overflow-wrap: anywhere; }');
+  expect(css).toContain('.actions-col { display: none !important; }');
+  expect(css).toContain('.entries-table { width: 100%; border-collapse: collapse; table-layout: auto; }');
+  expect(css).toContain('.entries-table th, .entries-table td { border: 1pt solid #333; padding: 2pt 4pt; overflow-wrap: anywhere; text-align: left; vertical-align: top; }');
+  expect(css).toContain('.entries-table th.col-number, .entries-table td.col-number { width: 1% !important; white-space: nowrap; }');
+  expect(css).toContain('.entries-table tbody tr:last-child td { border-bottom: 1pt solid #333 !important; }');
   expect(css).toContain('.print-root { zoom: 0.8; }');
   // вне @media print заголовок скрыт на экране
   expect(css).toMatch(/}\s*\.print-title \{ display: none; \}/);

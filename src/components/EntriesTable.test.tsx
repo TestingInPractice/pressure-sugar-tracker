@@ -24,6 +24,24 @@ describe('EntriesTable + EntryForm', () => {
     expect(cell).not.toHaveStyle({ maxWidth: '30ch' });
   });
 
+  it('marks the numbering column with col-number class', () => {
+    const numbered: Field[] = [
+      { id: 'n', name: 'Номер', type: 'number', required: false, width: 30 },
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+    ];
+    render(
+      <EntriesTable
+        report={{ fields: numbered }}
+        entries={[{ id: 'e3', reportId: 'r', values: { n: 1, d: '2026-08-23T19:00' }, createdAt: 7 }]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'Номер' })).toHaveClass('col-number');
+    expect(screen.getByText('1').closest('td')).toHaveClass('col-number');
+    expect(screen.getByRole('columnheader', { name: /Дата и время/ })).not.toHaveClass('col-number');
+  });
+
   it('formats datetime values compactly', () => {
     const dtFields: Field[] = [
       { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },

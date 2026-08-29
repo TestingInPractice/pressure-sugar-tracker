@@ -5,6 +5,9 @@ import { genId } from '../logic/report-config';
 import { datetimeFieldId, filterByRange } from '../logic/print-filter';
 import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
 import { onEntryRecorded } from '../logic/reminders';
+import { classifySync, plural } from '../logic/sync';
+import { getSyncState, putSyncState } from '../db/db';
+import { saveSyncFile } from '../logic/sync-file';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
@@ -24,6 +27,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [nameDraft, setNameDraft] = useState('');
   const [showRange, setShowRange] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  const [syncMsg, setSyncMsg] = useState('');
   const { settings } = useSettings();
 
   useEffect(() => {
@@ -79,6 +83,40 @@ export default function ReportScreen({ reportId, onBack }: Props) {
     onBack();
   };
 
+  const syncReport = async () => {
+    try {
+      const currentEntries = await listEntries(reportId);
+      const synced = await getSyncState(reportId);
+      const outcome = classifySync(currentEntries, synced?.entries);
+      if (outcome.kind === 'identical') {
+        setSyncMsg('Актуализация не нужна');
+        return;
+      }
+      const now = Date.now();
+      if (outcome.kind === 'append-only') {
+        if (!synced) {
+          setSyncMsg(`Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`);
+        } else {
+          setSyncMsg(`Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
+        }
+      } else {
+        const ok = window.confirm('В файле синхронизации есть записи, которые были изменены или удалены. Заменить их текущими данными отчёта?');
+        if (!ok) {
+          setSyncMsg('Файл не изменён');
+          return;
+        }
+        setSyncMsg('Файл обновлён');
+      }
+      await putSyncState({
+        reportId, reportName: report.name, fields: report.fields,
+        entries: currentEntries, syncedAt: now,
+      });
+      await saveSyncFile(report, currentEntries, now);
+    } catch {
+      setSyncMsg('Не удалось выполнить синхронизацию. Попробуйте ещё раз');
+    }
+  };
+
   return (
     <div className="screen">
       <button className="no-print btn-back" onClick={onBack}>← Назад</button>
@@ -112,6 +150,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
           <button className="no-print btn-danger" onClick={() => void removeReport()}>Удалить отчёт</button>
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
+          <button className="no-print" onClick={() => void syncReport()}>Синхронизация</button>
+          {syncMsg && <p className="hint no-print">{syncMsg}</p>}
           <button className="no-print primary" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
           <button className="no-print"
                   onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>

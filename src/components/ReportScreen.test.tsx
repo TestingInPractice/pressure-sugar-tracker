@@ -3,9 +3,13 @@ import { it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ReportScreen from './ReportScreen';
-import { db, putReport, putEntry } from '../db/db';
+import { db, putReport, putEntry, getSyncState, putSyncState } from '../db/db';
+import { saveSyncFile } from '../logic/sync-file';
 
-beforeEach(async () => { await db.delete(); await db.open(); });
+vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(undefined) }));
+const saveSyncMock = vi.mocked(saveSyncFile);
+
+beforeEach(async () => { await db.delete(); await db.open(); saveSyncMock.mockClear(); });
 
 const seed = () =>
   putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
@@ -28,7 +32,7 @@ it('has hidden .print-title heading and .no-print on action buttons', async () =
   const title = container.querySelector('.print-title');
   expect(title).not.toBeNull();
   expect(title?.textContent).toBe('Отчёт АД');
-  for (const name of ['← Назад', 'Настроить поля', 'Архивировать', 'Напоминание', '+ Запись', 'Печать/PDF']) {
+  for (const name of ['← Назад', 'Настроить поля', 'Архивировать', 'Напоминание', 'Синхронизация', '+ Запись', 'Печать/PDF']) {
     const btn = screen.getByRole('button', { name });
     expect(btn.className).toContain('no-print');
   }
@@ -163,4 +167,92 @@ it('index.css contains @media print rules per brief', () => {
   expect(css).toContain('.print-root { zoom: 0.8; }');
   // вне @media print заголовок скрыт на экране
   expect(css).toMatch(/}\s*\.print-title \{ display: none; \}/);
+});
+
+const seedWithEntry = async (v: number) => {
+  await putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
+  await putEntry({ id: 'e0', reportId: 'p1', values: { f1: v }, createdAt: 1 });
+};
+
+const clickSync = async () => {
+  fireEvent.click(await screen.findByRole('button', { name: 'Синхронизация' }));
+};
+
+it('first sync creates sync state, saves file and reports creation', async () => {
+  await seedWithEntry(0);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  await waitFor(async () => {
+    const st = await getSyncState('p1');
+    expect(st?.entries).toHaveLength(1);
+  });
+  expect(await screen.findByText(/Синхронизация создана \(1/)).toBeInTheDocument();
+  expect(saveSyncMock).toHaveBeenCalledTimes(1);
+  const [argReport, argEntries] = saveSyncMock.mock.calls[0];
+  expect(argReport.name).toBe('Отчёт АД');
+  expect(argEntries).toHaveLength(1);
+});
+
+it('append-only sync updates state without confirm', async () => {
+  await seedWithEntry(0);
+  await putSyncState({
+    reportId: 'p1', reportName: 'Отчёт АД', fields: [], syncedAt: 1,
+    entries: [{ id: 'e0', reportId: 'p1', values: { f1: 0 }, createdAt: 1 }],
+  });
+  await putEntry({ id: 'e9', reportId: 'p1', values: { f1: 9 }, createdAt: 9 });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  const confirmSpy = vi.spyOn(window, 'confirm');
+  await clickSync();
+  await waitFor(async () => expect((await getSyncState('p1'))?.entries).toHaveLength(2));
+  expect(confirmSpy).not.toHaveBeenCalled();
+  expect(await screen.findByText(/добавлено 1/)).toBeInTheDocument();
+  confirmSpy.mockRestore();
+});
+
+it('identical sync reports no actualization needed without touching state', async () => {
+  await seedWithEntry(0);
+  await putSyncState({
+    reportId: 'p1', reportName: 'Отчёт АД', fields: [], syncedAt: 1,
+    entries: [{ id: 'e0', reportId: 'p1', values: { f1: 0 }, createdAt: 1 }],
+  });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  expect(await screen.findByText('Актуализация не нужна')).toBeInTheDocument();
+  expect(saveSyncMock).not.toHaveBeenCalled();
+  expect((await getSyncState('p1'))?.syncedAt).toBe(1);
+});
+
+it('conflict with confirm replaces sync state and saves file', async () => {
+  await seedWithEntry(5);
+  await putSyncState({
+    reportId: 'p1', reportName: 'Отчёт АД', fields: [], syncedAt: 1,
+    entries: [{ id: 'e0', reportId: 'p1', values: { f1: 999 }, createdAt: 1 }],
+  });
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  await waitFor(async () => {
+    const st = await getSyncState('p1');
+    expect(st?.entries[0].values.f1).toBe(5);
+  });
+  expect(await screen.findByText('Файл обновлён')).toBeInTheDocument();
+  expect(saveSyncMock).toHaveBeenCalledTimes(1);
+  confirmSpy.mockRestore();
+});
+
+it('conflict with decline leaves sync state and file untouched', async () => {
+  await seedWithEntry(5);
+  const orig = {
+    reportId: 'p1', reportName: 'Отчёт АД', fields: [], syncedAt: 1,
+    entries: [{ id: 'e0', reportId: 'p1', values: { f1: 999 }, createdAt: 1 }],
+  };
+  await putSyncState(orig);
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+  expect(await screen.findByText('Файл не изменён')).toBeInTheDocument();
+  expect(await getSyncState('p1')).toEqual(orig);
+  expect(saveSyncMock).not.toHaveBeenCalled();
+  confirmSpy.mockRestore();
 });

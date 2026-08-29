@@ -120,16 +120,19 @@ function buildSyncJson(report: Report, entries: Entry[], syncedAtMs: number): st
 1. `entries = await listEntries(reportId)`, `synced = await getSyncState(reportId)`.
 2. `classifySync(entries, synced?.entries)`:
    - **identical** → inline-сообщение «Актуализация не нужна».
-   - **append-only** → `putSyncState({ ...текущие данные, syncedAt: now })`,
-     сохранить файл на телефон, сообщение «Синхронизировано: добавлено N записей
-     (файл обновлён)». Для первой синхронизации: «Синхронизация создана (N записей)».
+   - **append-only** → сохранить файл на телефон (`saveSyncFile`), затем
+     `putSyncState({ ...текущие данные, syncedAt: now })`, сообщение «Синхронизировано:
+     добавлено N записей (файл обновлён)». Для первой синхронизации:
+     «Синхронизация создана (N записей)».
    - **conflict** → `window.confirm('В файле синхронизации есть записи, которые были
      изменены или удалены. Заменить их текущими данными отчёта?')`:
-     - «Да» → `putSyncState(...)`, сохранить файл, сообщение «Файл обновлён».
+     - «Да» → сохранить файл (`saveSyncFile`), затем `putSyncState(...)`,
+       сообщение «Файл обновлён».
      - «Нет» → ничего не менять, сообщение «Файл не изменён».
 3. Сообщения — inline под кнопкой (паттерн `MoreTab`), а не `alert`.
 
-Сохранение файла — утилита `saveSyncFile(report, entries)`:
+Сохранение файла — утилита `saveSyncFile(report, entries): Promise<boolean>`
+(возвращает `true` при сохранении файла, `false` при отмене пользователем):
 
 - iOS/совместимые: `navigator.share({ files: [new File([json], name, {type:'application/json'})] })`
   (имеется `navigator.canShare`-гард);
@@ -137,9 +140,10 @@ function buildSyncJson(report: Report, entries: Entry[], syncedAtMs: number): st
 
 ## Обработка ошибок
 
-- `navigator.share` отклонён пользователем (AbortError) → молча игнорируем, слепок уже
-  сохранён — при следующем нажатии «Синхронизация» покажет «не нужна» либо пересохранит.
-- Ошибки IndexedDB → сообщение «Не удалось выполнить синхронизацию. Попробуйте ещё раз».
+- `navigator.share` отклонён пользователем (AbortError) → `saveSyncFile` возвращает `false`,
+  слепок НЕ записывается, сообщение «Сохранение отменено»; при следующем нажатии
+  «Синхронизация» попытка сохранения повторится (пересохранит файл).
+- Ошибки IndexedDB / сохранения → сообщение «Не удалось выполнить синхронизацию. Попробуйте ещё раз».
 
 ## Тестирование
 
@@ -168,6 +172,10 @@ function buildSyncJson(report: Report, entries: Entry[], syncedAtMs: number): st
 - identical: нажатие → сообщение «Актуализация не нужна», `db.syncs` не изменён.
 - conflict + «Да»: `confirm` → true, слепок заменён, файл пересохранён.
 - conflict + «Нет»: `confirm` → false, слепок и файл не тронуты, сообщение «Файл не изменён».
+- отмена сохранения (AbortError): `saveSyncFile` → false → сообщение «Сохранение отменено»,
+  слепок НЕ записан.
+- ошибка сохранения: `saveSyncFile` → rejected → сообщение «Не удалось выполнить
+  синхронизацию…», слепок НЕ записан.
 
 Все UI-тесты — на реальных `db` (fake-indexeddb) с `beforeEach` reset, как в существующих.
 

@@ -378,8 +378,8 @@ git commit -m "feat: classify sync diff and build sync file"
 
 **Interfaces:**
 - Consumes: `buildSyncJson`, `syncFilename` из `./sync`
-- Produces: `saveSyncFile(report: Pick<Report, 'id' | 'name' | 'fields'>, entries: Entry[], syncedAtMs: number): Promise<void>`
-  — использует Web Share API (`navigator.share` + `canShare`), при отмене пользователем (AbortError) молча выходит; fallback — Blob + `<a download>`.
+- Produces: `saveSyncFile(report: Pick<Report, 'id' | 'name' | 'fields'>, entries: Entry[], syncedAtMs: number): Promise<boolean>`
+  — использует Web Share API (`navigator.share` + `canShare`), при отмене пользователем (AbortError) возвращает `false`; `true` при успешном сохранении; fallback — Blob + `<a download>`.
 
 - [ ] **Step 1: Написать падающие тесты** — создать `src/logic/sync-file.test.ts`:
 
@@ -395,7 +395,7 @@ describe('saveSyncFile', () => {
   it('uses Web Share API when supported', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
-    await saveSyncFile(report, entries, 1000);
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
     expect(share).toHaveBeenCalledTimes(1);
     const arg = share.mock.calls[0][0] as { files: File[] };
     expect(arg.files[0].name).toBe('Отчёт АД-sync.json');
@@ -407,10 +407,10 @@ describe('saveSyncFile', () => {
     vi.unstubAllGlobals();
   });
 
-  it('ignores user cancellation (AbortError)', async () => {
+  it('returns false on user cancellation (AbortError)', async () => {
     const share = vi.fn().mockRejectedValue(new DOMException('cancel', 'AbortError'));
     vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
-    await expect(saveSyncFile(report, entries, 1000)).resolves.toBeUndefined();
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(false);
     vi.unstubAllGlobals();
   });
 
@@ -424,7 +424,7 @@ describe('saveSyncFile', () => {
       if (tag === 'a') el.addEventListener('click', () => { clicked = 'dl'; });
       return el;
     });
-    await saveSyncFile(report, entries, 1000);
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
     expect(clicked).toBe('dl');
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -447,7 +447,7 @@ export async function saveSyncFile(
   report: Pick<Report, 'id' | 'name' | 'fields'>,
   entries: Entry[],
   syncedAtMs: number,
-): Promise<void> {
+): Promise<boolean> {
   const json = buildSyncJson(report, entries, syncedAtMs);
   const name = syncFilename(report.name);
   const file = new File([json], name, { type: 'application/json' });
@@ -456,10 +456,10 @@ export async function saveSyncFile(
     try {
       await navigator.share({ files: [file] });
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (e instanceof DOMException && e.name === 'AbortError') return false;
       throw e;
     }
-    return;
+    return true;
   }
 
   const url = URL.createObjectURL(file);
@@ -468,6 +468,7 @@ export async function saveSyncFile(
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
 }
 ```
 
@@ -503,7 +504,7 @@ git commit -m "feat: save sync file via Web Share or download"
 import { getSyncState, putSyncState } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
 
-vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(true) }));
 const saveSyncMock = vi.mocked(saveSyncFile);
 ```
 
@@ -605,6 +606,24 @@ it('conflict with decline leaves sync state and file untouched', async () => {
   expect(saveSyncMock).not.toHaveBeenCalled();
   confirmSpy.mockRestore();
 });
+
+it('cancelled save (AbortError) reports cancellation without writing sync state', async () => {
+  await seedWithEntry(0);
+  saveSyncMock.mockResolvedValue(false);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  expect(await screen.findByText('Сохранение отменено')).toBeInTheDocument();
+  expect(await getSyncState('p1')).toBeUndefined();
+});
+
+it('saveSyncFile rejection reports error without writing sync state', async () => {
+  await seedWithEntry(0);
+  saveSyncMock.mockRejectedValue(new Error('share failed'));
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  expect(await screen.findByText('Не удалось выполнить синхронизацию. Попробуйте ещё раз')).toBeInTheDocument();
+  expect(await getSyncState('p1')).toBeUndefined();
+});
 ```
 
 - [ ] **Step 2: Запустить и убедиться, что падает**
@@ -640,31 +659,39 @@ const syncReport = async () => {
       setSyncMsg('Актуализация не нужна');
       return;
     }
-    const now = Date.now();
-    if (outcome.kind === 'append-only') {
-      if (!synced) {
-        setSyncMsg(`Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`);
-      } else {
-        setSyncMsg(`Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
-      }
-    } else {
+    if (outcome.kind === 'conflict') {
       const ok = window.confirm('В файле синхронизации есть записи, которые были изменены или удалены. Заменить их текущими данными отчёта?');
       if (!ok) {
         setSyncMsg('Файл не изменён');
         return;
       }
-      setSyncMsg('Файл обновлён');
+    }
+    const now = Date.now();
+    const saved = await saveSyncFile(report, currentEntries, now);
+    if (!saved) {
+      setSyncMsg('Сохранение отменено');
+      return;
     }
     await putSyncState({
       reportId, reportName: report.name, fields: report.fields,
       entries: currentEntries, syncedAt: now,
     });
-    await saveSyncFile(report, currentEntries, now);
+    if (outcome.kind === 'append-only') {
+      setSyncMsg(!synced
+        ? `Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`
+        : `Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
+    } else {
+      setSyncMsg('Файл обновлён');
+    }
   } catch {
     setSyncMsg('Не удалось выполнить синхронизацию. Попробуйте ещё раз');
   }
 };
 ```
+
+ВАЖНО (фикс по финальному ревью): файл сохраняется ДО записи слепка. При отмене
+пользователем (`saveSyncFile` → false) слепок НЕ пишется — следующее нажатие повторит
+сохранение. Сообщение об успехе выставляется ПОСЛЕ фактического сохранения.
 
 Кнопка и сообщение — в фрагменте, сразу после кнопки «Напоминание»:
 
@@ -684,7 +711,7 @@ Expected: PASS (все старые + новые тесты).
 - [ ] **Step 5: Полная проверка проекта**
 
 Run: `npx vitest run && npx tsc -b`
-Expected: все тесты зелёные (105: 82 старых + 23 новых), `tsc` без ошибок.
+Expected: все тесты зелёные (107: 82 старых + 25 новых), `tsc` без ошибок.
 
 - [ ] **Step 6: Commit**
 

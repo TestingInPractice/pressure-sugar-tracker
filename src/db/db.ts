@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Report, Entry, Settings, Snapshot } from '../types';
+import type { Report, Entry, Settings, Snapshot, SyncState } from '../types';
 
 interface SettingsRow extends Settings { key: string }
 
@@ -7,6 +7,7 @@ class TrackerDb extends Dexie {
   reports!: Table<Report, string>;
   entries!: Table<Entry, string>;
   settings!: Table<SettingsRow, string>;
+  syncs!: Table<SyncState, string>;
 
   constructor() {
     super('tracker-db');
@@ -14,6 +15,9 @@ class TrackerDb extends Dexie {
       reports: 'id',
       entries: 'id, reportId, createdAt',
       settings: 'key',
+    });
+    this.version(2).stores({
+      syncs: 'reportId',
     });
   }
 }
@@ -38,9 +42,10 @@ export async function putReport(r: Report): Promise<void> {
 }
 
 export async function deleteReport(id: string): Promise<void> {
-  await db.transaction('rw', db.reports, db.entries, async () => {
+  await db.transaction('rw', db.reports, db.entries, db.syncs, async () => {
     await db.reports.delete(id);
     await db.entries.where('reportId').equals(id).delete();
+    await db.syncs.delete(id);
   });
 }
 
@@ -83,4 +88,16 @@ export async function replaceEverything(snap: Snapshot): Promise<void> {
     await db.reports.bulkPut(snap.reports);
     await db.entries.bulkPut(snap.entries);
   });
+}
+
+export async function getSyncState(reportId: string): Promise<SyncState | undefined> {
+  return db.syncs.get(reportId);
+}
+
+export async function putSyncState(state: SyncState): Promise<void> {
+  await db.syncs.put(state);
+}
+
+export async function deleteSyncState(reportId: string): Promise<void> {
+  await db.syncs.delete(reportId);
 }

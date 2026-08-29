@@ -37,6 +37,14 @@ export interface Entry {
   createdAt: number;
 }
 
+export interface SyncState {
+  reportId: string;
+  reportName: string;
+  fields: Field[];
+  entries: Entry[];
+  syncedAt: number; // мс, время последней записи файла
+}
+
 export interface Settings {
   masterOn: boolean;
 }

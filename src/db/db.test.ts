@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { db, getSettings, saveSettings, putReport, getReport,
          listReports, deleteReport, putEntry, listEntries, deleteEntry,
          latestEntryAt, getAllData, replaceEverything } from './db';
+import { getSyncState, putSyncState, deleteSyncState } from './db';
 import type { Report, Entry } from '../types';
 import type { Field } from '../types';
+import type { SyncState } from '../types';
 
 beforeEach(async () => { await db.delete(); await db.open(); });
 
@@ -46,5 +48,32 @@ describe('backup plumbing', () => {
     await replaceEverything(snap);
     expect(await getReport('a')).toBeTruthy();
     expect((await listEntries('a'))[0].values.f1).toBe(120);
+  });
+});
+
+describe('sync state', () => {
+  it('round-trips a sync state', async () => {
+    const st: SyncState = {
+      reportId: 'a', reportName: 'Отчёт',
+      fields: [{ id: 'f1', name: 'ВД / НД / П', type: 'text', required: false, width: 30 }],
+      entries: [{ id: 'e1', reportId: 'a', values: { f1: '120/80' }, createdAt: 5 }],
+      syncedAt: 100,
+    };
+    await putSyncState(st);
+    expect(await getSyncState('a')).toEqual(st);
+    expect(await getSyncState('zzz')).toBeUndefined();
+  });
+
+  it('deleteSyncState removes the row', async () => {
+    await putSyncState({ reportId: 'a', reportName: 'R', fields: [], entries: [], syncedAt: 1 });
+    await deleteSyncState('a');
+    expect(await getSyncState('a')).toBeUndefined();
+  });
+
+  it('deleteReport cascades to sync state', async () => {
+    await putReport({ id: 'a', name: 'A', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
+    await putSyncState({ reportId: 'a', reportName: 'A', fields: [], entries: [], syncedAt: 1 });
+    await deleteReport('a');
+    expect(await getSyncState('a')).toBeUndefined();
   });
 });

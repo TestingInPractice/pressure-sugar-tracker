@@ -34,7 +34,7 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
             <input inputMode="decimal" value={String(values[f.id] ?? '')}
                    onChange={e => set(f.id, e.target.value)} />
           ) : f.unit ? (
-            <input type="text" placeholder={f.name === 'Давление' ? '120/70/100' : ''}
+            <input type="text" placeholder={f.name === 'ВД / НД / П' ? '120/70/100' : ''}
                    value={String(values[f.id] ?? '')}
                    onChange={e => set(f.id, e.target.value)} />
           ) : (

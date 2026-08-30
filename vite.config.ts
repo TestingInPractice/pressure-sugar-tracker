@@ -9,6 +9,21 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // tessdata ассеты кэшируются через runtimeCaching (CacheFirst), не precache
+        globIgnores: ['**/tessdata/**'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/tessdata\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tessdata',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'Трекер давления и сахара',
         short_name: 'Давление',

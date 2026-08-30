@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tesseract.js локальные ассеты (генерируются setup:tessdata)
+public/tessdata

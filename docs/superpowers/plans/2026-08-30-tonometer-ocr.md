@@ -109,7 +109,7 @@ describe('parsePressureText', () => {
   });
 
   it('числа вне диапазонов отбрасываются, не съедая слоты', () => {
-    expect(parsePressureText('120/300/65')).toEqual({ sys: 120, dia: null, pulse: 65 }); // 300>150
+    expect(parsePressureText('120/300/65')).toEqual({ sys: 120, dia: 65, pulse: null }); // 300>150 — отброшено, слот dia заняла 65
     expect(parsePressureText('120/80/999')).toEqual({ sys: 120, dia: 80, pulse: null });
     expect(parsePressureText('300/120/80/65')).toEqual({ sys: 120, dia: 80, pulse: 65 });
   });

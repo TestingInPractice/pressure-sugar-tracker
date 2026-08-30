@@ -938,3 +938,31 @@ p.error {
   .entries-table tbody tr:nth-child(even), .entries-table tbody tr:hover { background: none; }
 }
 .print-title { display: none; }
+
+/* ============================================================
+   Кнопка «Фото» (OCR) в форме записи
+   ============================================================ */
+
+.photo-row {
+  display: block;
+  margin-top: 0.4rem;
+}
+.photo-btn {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #2563eb;
+  border-radius: 0.4rem;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 0.9rem;
+  user-select: none;
+}
+.photo-btn:hover {
+  background: #2563eb;
+  color: #fff;
+}
+.photo-row em.ok {
+  color: #16a34a;
+  font-style: normal;
+  margin-left: 0.6rem;
+}

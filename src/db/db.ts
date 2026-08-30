@@ -82,8 +82,8 @@ export async function getAllData(): Promise<Snapshot> {
 }
 
 export async function replaceEverything(snap: Snapshot): Promise<void> {
-  await db.transaction('rw', db.reports, db.entries, db.settings, async () => {
-    await Promise.all([db.reports.clear(), db.entries.clear(), db.settings.clear()]);
+  await db.transaction('rw', db.reports, db.entries, db.settings, db.syncs, async () => {
+    await Promise.all([db.reports.clear(), db.entries.clear(), db.settings.clear(), db.syncs.clear()]);
     await db.settings.put({ key: 'app', ...snap.settings });
     await db.reports.bulkPut(snap.reports);
     await db.entries.bulkPut(snap.entries);

@@ -9,7 +9,7 @@ describe('saveSyncFile', () => {
   it('uses Web Share API when supported', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
-    await saveSyncFile(report, entries, 1000);
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
     expect(share).toHaveBeenCalledTimes(1);
     const arg = share.mock.calls[0][0] as { files: File[] };
     expect(arg.files[0].name).toBe('Отчёт АД-sync.json');
@@ -21,10 +21,10 @@ describe('saveSyncFile', () => {
     vi.unstubAllGlobals();
   });
 
-  it('ignores user cancellation (AbortError)', async () => {
+  it('returns false on user cancellation (AbortError)', async () => {
     const share = vi.fn().mockRejectedValue(new DOMException('cancel', 'AbortError'));
     vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
-    await expect(saveSyncFile(report, entries, 1000)).resolves.toBeUndefined();
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(false);
     vi.unstubAllGlobals();
   });
 
@@ -38,7 +38,7 @@ describe('saveSyncFile', () => {
       if (tag === 'a') el.addEventListener('click', () => { clicked = 'dl'; });
       return el;
     });
-    await saveSyncFile(report, entries, 1000);
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
     expect(clicked).toBe('dl');
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

@@ -92,26 +92,30 @@ export default function ReportScreen({ reportId, onBack }: Props) {
         setSyncMsg('Актуализация не нужна');
         return;
       }
-      const now = Date.now();
-      if (outcome.kind === 'append-only') {
-        if (!synced) {
-          setSyncMsg(`Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`);
-        } else {
-          setSyncMsg(`Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
-        }
-      } else {
+      if (outcome.kind === 'conflict') {
         const ok = window.confirm('В файле синхронизации есть записи, которые были изменены или удалены. Заменить их текущими данными отчёта?');
         if (!ok) {
           setSyncMsg('Файл не изменён');
           return;
         }
-        setSyncMsg('Файл обновлён');
+      }
+      const now = Date.now();
+      const saved = await saveSyncFile(report, currentEntries, now);
+      if (!saved) {
+        setSyncMsg('Сохранение отменено');
+        return;
       }
       await putSyncState({
         reportId, reportName: report.name, fields: report.fields,
         entries: currentEntries, syncedAt: now,
       });
-      await saveSyncFile(report, currentEntries, now);
+      if (outcome.kind === 'append-only') {
+        setSyncMsg(!synced
+          ? `Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`
+          : `Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
+      } else {
+        setSyncMsg('Файл обновлён');
+      }
     } catch {
       setSyncMsg('Не удалось выполнить синхронизацию. Попробуйте ещё раз');
     }

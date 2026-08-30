@@ -6,7 +6,7 @@ import ReportScreen from './ReportScreen';
 import { db, putReport, putEntry, getSyncState, putSyncState } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
 
-vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(true) }));
 const saveSyncMock = vi.mocked(saveSyncFile);
 
 beforeEach(async () => { await db.delete(); await db.open(); saveSyncMock.mockClear(); });
@@ -255,4 +255,22 @@ it('conflict with decline leaves sync state and file untouched', async () => {
   expect(await getSyncState('p1')).toEqual(orig);
   expect(saveSyncMock).not.toHaveBeenCalled();
   confirmSpy.mockRestore();
+});
+
+it('cancelled save (AbortError) reports cancellation without writing sync state', async () => {
+  await seedWithEntry(0);
+  saveSyncMock.mockResolvedValue(false);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  expect(await screen.findByText('Сохранение отменено')).toBeInTheDocument();
+  expect(await getSyncState('p1')).toBeUndefined();
+});
+
+it('saveSyncFile rejection reports error without writing sync state', async () => {
+  await seedWithEntry(0);
+  saveSyncMock.mockRejectedValue(new Error('share failed'));
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await clickSync();
+  expect(await screen.findByText('Не удалось выполнить синхронизацию. Попробуйте ещё раз')).toBeInTheDocument();
+  expect(await getSyncState('p1')).toBeUndefined();
 });

@@ -49,6 +49,15 @@ describe('backup plumbing', () => {
     expect(await getReport('a')).toBeTruthy();
     expect((await listEntries('a'))[0].values.f1).toBe(120);
   });
+
+  it('replaceEverything clears sync states', async () => {
+    const r: Report = { id: 'a', name: 'A', fields: [], archived: false, createdAt: 1, updatedAt: 1 };
+    await putReport(r);
+    await putSyncState({ reportId: 'a', reportName: 'A', fields: [], entries: [], syncedAt: 1 });
+    const snap = await getAllData();
+    await replaceEverything(snap);
+    expect(await getSyncState('a')).toBeUndefined();
+  });
 });
 
 describe('sync state', () => {

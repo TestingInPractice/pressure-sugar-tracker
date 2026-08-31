@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Report, Entry } from '../types';
 import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport } from '../db/db';
 import { genId } from '../logic/report-config';
@@ -34,6 +34,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [photoMessage, setPhotoMessage] = useState('');
   const [photoInitial, setPhotoInitial] = useState<Record<string, string | number> | undefined>(undefined);
   const [photoSeq, setPhotoSeq] = useState(0);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const { settings } = useSettings();
 
   useEffect(() => {
@@ -195,11 +196,15 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <button className="no-print primary"
                   onClick={() => { setEditingEntry(null); setPhotoInitial(undefined); setOcrStatus('idle'); setPhotoMessage(''); setShowForm(true); }}>+ Запись</button>
           {bpField && (
-            <label className="no-print primary photo-entry">
-              {ocrStatus === 'working' ? 'Распознаю…' : 'Фото'}
-              <input type="file" accept="image/*" hidden aria-label="Фото"
+            <>
+              <button type="button" className="no-print primary photo-entry"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={ocrStatus === 'working'}>
+                {ocrStatus === 'working' ? 'Распознаю…' : 'Фото'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Фото"
                      onChange={e => { void handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
-            </label>
+            </>
           )}
           <button className="no-print"
                   onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>

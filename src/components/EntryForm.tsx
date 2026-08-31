@@ -4,6 +4,11 @@ import { validateEntry } from '../logic/validation';
 import { recognizeTextFromImage } from '../logic/ocr';
 import { parsePressureText, formatPressureReading } from '../logic/ocr-parse';
 
+export interface PhotoResult {
+  status: 'idle' | 'done' | 'error';
+  message: string;
+}
+
 type OcrStatus = 'idle' | 'working' | 'done' | 'error';
 
 interface Props {
@@ -11,9 +16,10 @@ interface Props {
   initial?: Record<string, string | number>;
   onSave: (values: Record<string, string | number>) => void;
   onCancel: () => void;
+  photoResult?: PhotoResult;
 }
 
-export default function EntryForm({ fields, initial, onSave, onCancel }: Props) {
+export default function EntryForm({ fields, initial, onSave, onCancel, photoResult }: Props) {
   const [values, setValues] = useState<Record<string, string | number>>(initial ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle');
@@ -85,6 +91,9 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
           {errors[f.id] && <em className="error">{errors[f.id]}</em>}
         </label>
       ))}
+      {photoResult && photoResult.status !== 'idle' && (
+        <p className="hint photo-msg">{photoResult.message}</p>
+      )}
       <button type="submit" className="primary">Сохранить</button>
       <button type="button" onClick={onCancel}>Отмена</button>
     </form>

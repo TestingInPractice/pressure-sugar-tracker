@@ -9,7 +9,11 @@ import { saveSyncFile } from '../logic/sync-file';
 vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(true) }));
 const saveSyncMock = vi.mocked(saveSyncFile);
 
-beforeEach(async () => { await db.delete(); await db.open(); saveSyncMock.mockClear(); });
+import { recognizeTextFromImage } from '../logic/ocr';
+vi.mock('../logic/ocr', () => ({ recognizeTextFromImage: vi.fn() }));
+const mockRecognize = vi.mocked(recognizeTextFromImage);
+
+beforeEach(async () => { await db.delete(); await db.open(); saveSyncMock.mockClear(); mockRecognize.mockReset(); });
 
 const seed = () =>
   putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
@@ -273,4 +277,68 @@ it('saveSyncFile rejection reports error without writing sync state', async () =
   await clickSync();
   expect(await screen.findByText('Не удалось выполнить синхронизацию. Попробуйте ещё раз')).toBeInTheDocument();
   expect(await getSyncState('p1')).toBeUndefined();
+});
+
+const seedWithBP = () =>
+  putReport({ id: 'pBp', name: 'БП', archived: false, createdAt: 1, updatedAt: 1,
+    fields: [
+      { id: 'bp', name: 'ВД / НД / П', type: 'text', required: false, width: 30 },
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+    ] });
+
+it('показывает кнопку «Фото» при наличии поля «ВД / НД / П»', async () => {
+  await seedWithBP();
+  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
+  expect(await screen.findByLabelText('Фото')).toBeInTheDocument();
+});
+
+it('скрывает кнопку «Фото» при отсутствии поля', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  expect(screen.queryByLabelText('Фото')).toBeNull();
+});
+
+it('успех: открывает форму с датой и распознанным значением', async () => {
+  await seedWithBP();
+  mockRecognize.mockResolvedValue('120/80/65');
+  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
+  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
+  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
+  expect(bp).toHaveValue('120/80/65');
+  const date = screen.getByLabelText(/Дата и время/) as HTMLInputElement;
+  expect(date.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  expect(await screen.findByText('Готово: 120/80/65')).toBeInTheDocument();
+});
+
+it('мусор: форма открывается, поле пусто, сообщение ошибки', async () => {
+  await seedWithBP();
+  mockRecognize.mockResolvedValue('zxcvbn');
+  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
+  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
+  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
+  expect(bp).toHaveValue('');
+  expect((screen.getByLabelText(/Дата и время/) as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  expect(await screen.findByText('Не удалось распознать. Попробуйте другое фото')).toBeInTheDocument();
+});
+
+it('worker ошибка: форма открывается, сообщение «Недоступно»', async () => {
+  await seedWithBP();
+  mockRecognize.mockRejectedValue(new Error('w'));
+  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
+  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
+  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
+  expect(bp).toHaveValue('');
+  expect(await screen.findByText('Распознавание недоступно. Попробуйте ещё раз')).toBeInTheDocument();
+});
+
+it('после cancel статус сбрасывается', async () => {
+  await seedWithBP();
+  mockRecognize.mockResolvedValue('120/80/65');
+  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
+  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
+  await screen.findByText('Готово: 120/80/65');
+  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+  fireEvent.click(screen.getByRole('button', { name: '+ Запись' }));
+  expect(screen.queryByText('Готово: 120/80/65')).toBeNull();
 });

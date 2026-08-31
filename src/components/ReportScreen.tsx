@@ -4,7 +4,9 @@ import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport 
 import { genId } from '../logic/report-config';
 import { datetimeFieldId, filterByRange } from '../logic/print-filter';
 import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
-import { onEntryRecorded } from '../logic/reminders';
+import { onEntryRecorded, toLocalInputValue } from '../logic/reminders';
+import { recognizeTextFromImage } from '../logic/ocr';
+import { parsePressureText, formatPressureReading } from '../logic/ocr-parse';
 import { classifySync, plural } from '../logic/sync';
 import { getSyncState, putSyncState } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
@@ -28,6 +30,10 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [showRange, setShowRange] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [syncMsg, setSyncMsg] = useState('');
+  const [ocrStatus, setOcrStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
+  const [photoMessage, setPhotoMessage] = useState('');
+  const [photoInitial, setPhotoInitial] = useState<Record<string, string | number> | undefined>(undefined);
+  const [photoSeq, setPhotoSeq] = useState(0);
   const { settings } = useSettings();
 
   useEffect(() => {
@@ -39,9 +45,39 @@ export default function ReportScreen({ reportId, onBack }: Props) {
 
   const dtFieldId = datetimeFieldId(report.fields);
   const numId = numberingFieldId(report.fields);
+  const bpField = report.fields.find(f => f.name === 'ВД / НД / П');
   const visibleEntries = filterByRange(entries, dtFieldId, range);
   const setRangePart = (part: 'from' | 'to', value: string) =>
     setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
+
+  const handlePhoto = async (file: File | undefined) => {
+    if (!file || !bpField || ocrStatus === 'working') return;
+    setOcrStatus('working');
+    setPhotoMessage('');
+    setEditingEntry(null);
+    let message = '';
+    let formatted = '';
+    let status: 'done' | 'error' = 'done';
+    try {
+      const text = await recognizeTextFromImage(file);
+      formatted = formatPressureReading(parsePressureText(text));
+      message = formatted === ''
+        ? 'Не удалось распознать. Попробуйте другое фото'
+        : `Готово: ${formatted}`;
+      if (formatted === '') status = 'error';
+    } catch {
+      status = 'error';
+      message = 'Распознавание недоступно. Попробуйте ещё раз';
+    }
+    setOcrStatus(status);
+    setPhotoMessage(message);
+    const photoInit: Record<string, string | number> = {};
+    if (dtFieldId) photoInit[dtFieldId] = toLocalInputValue(new Date().toISOString());
+    if (formatted !== '' && bpField) photoInit[bpField.id] = formatted;
+    setPhotoInitial(photoInit);
+    setPhotoSeq(s => s + 1);
+    setShowForm(true);
+  };
 
   const saveEntry = async (values: Record<string, string | number>) => {
     const vals = { ...values };
@@ -156,7 +192,15 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button className="no-print" onClick={() => void syncReport()}>Синхронизация</button>
           {syncMsg && <p className="hint no-print">{syncMsg}</p>}
-          <button className="no-print primary" onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
+          <button className="no-print primary"
+                  onClick={() => { setEditingEntry(null); setPhotoInitial(undefined); setOcrStatus('idle'); setPhotoMessage(''); setShowForm(true); }}>+ Запись</button>
+          {bpField && (
+            <label className="no-print primary photo-entry">
+              {ocrStatus === 'working' ? 'Распознаю…' : 'Фото'}
+              <input type="file" accept="image/*" hidden aria-label="Фото"
+                     onChange={e => { void handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          )}
           <button className="no-print"
                   onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>
           {showRange && (
@@ -184,12 +228,14 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           )}
           {showForm && (
             <EntryForm
-              key={editingEntry?.id ?? 'new'}
+              key={editingEntry?.id ?? `photo-${photoSeq}`}
               fields={report.fields}
               initial={editingEntry?.values ??
+                       photoInitial ??
                        (numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : undefined)}
+              photoResult={editingEntry ? undefined : { status: ocrStatus as 'idle' | 'done' | 'error', message: photoMessage }}
               onSave={v => void saveEntry(v)}
-              onCancel={() => { setEditingEntry(null); setShowForm(false); }}
+              onCancel={() => { setEditingEntry(null); setShowForm(false); setPhotoInitial(undefined); setOcrStatus('idle'); setPhotoMessage(''); }}
             />
           )}
           <h2 className="print-title">{report.name}</h2>

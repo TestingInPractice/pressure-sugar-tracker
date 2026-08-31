@@ -308,7 +308,7 @@ it('успех: открывает форму с датой и распозна�
   expect(bp).toHaveValue('120/80/65');
   const date = screen.getByLabelText(/Дата и время/) as HTMLInputElement;
   expect(date.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-  expect(await screen.findByText('Готово: 120/80/65')).toBeInTheDocument();
+  expect(await screen.findByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.')).toBeInTheDocument();
 });
 
 it('мусор: форма открывается, поле пусто, сообщение ошибки', async () => {
@@ -319,7 +319,7 @@ it('мусор: форма открывается, поле пусто, сооб
   const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
   expect(bp).toHaveValue('');
   expect((screen.getByLabelText(/Дата и время/) as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-  expect(await screen.findByText('Не удалось распознать. Попробуйте другое фото')).toBeInTheDocument();
+  expect(await screen.findByText('Распознать не удалось. Введите значение вручную')).toBeInTheDocument();
 });
 
 it('worker ошибка: форма открывается, сообщение «Недоступно»', async () => {
@@ -337,8 +337,8 @@ it('после cancel статус сбрасывается', async () => {
   mockRecognize.mockResolvedValue('120/80/65');
   render(<ReportScreen reportId="pBp" onBack={() => {}} />);
   fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  await screen.findByText('Готово: 120/80/65');
+  await screen.findByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.');
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   fireEvent.click(screen.getByRole('button', { name: '+ Запись' }));
-  expect(screen.queryByText('Готово: 120/80/65')).toBeNull();
+  expect(screen.queryByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.')).toBeNull();
 });

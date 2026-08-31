@@ -18,10 +18,10 @@ describe('EntryForm photo result message', () => {
         fields={[OTHER_FIELD]}
         onSave={vi.fn()}
         onCancel={vi.fn()}
-        photoResult={{ status: 'done', message: 'Готово: 120/80/65' }}
+        photoResult={{ status: 'done', message: 'Распознано: 120/80/65. Проверьте и исправьте при необходимости.' }}
       />
     );
-    expect(screen.getByText('Готово: 120/80/65')).toBeInTheDocument();
+    expect(screen.getByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.')).toBeInTheDocument();
   });
 
   it('показывает статус error', () => {
@@ -30,14 +30,36 @@ describe('EntryForm photo result message', () => {
         fields={[OTHER_FIELD]}
         onSave={vi.fn()}
         onCancel={vi.fn()}
-        photoResult={{ status: 'error', message: 'Не удалось распознать. Попробуйте другое фото' }}
+        photoResult={{ status: 'error', message: 'Распознать не удалось. Введите значение вручную' }}
       />
     );
-    expect(screen.getByText('Не удалось распознать. Попробуйте другое фото')).toBeInTheDocument();
+    expect(screen.getByText('Распознать не удалось. Введите значение вручную')).toBeInTheDocument();
   });
 
   it('не показывает сообщение при idle/undefined', () => {
     renderForm([OTHER_FIELD]);
-    expect(screen.queryByText(/Готово|не удалось/i)).toBeNull();
+    expect(screen.queryByText(/Распознано|распознать/i)).toBeNull();
+  });
+});
+
+describe('EntryForm draft field highlight', () => {
+  const BP_FIELD: Field = {
+    id: 'bp', name: 'ВД / НД / П', type: 'text', unit: 'мм рт. ст.', required: true, width: 2,
+  };
+
+  it('помечает поле-черновик классом и фокусирует его', () => {
+    render(
+      <EntryForm
+        fields={[BP_FIELD]}
+        initial={{ bp: '135/85' }}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        draftFieldId="bp"
+      />
+    );
+    const label = screen.getByText(/в[дд] \/ н[дд] \/ п/i).closest('label');
+    expect(label).toHaveClass('draft-field');
+    const input = screen.getByDisplayValue('135/85');
+    expect(document.activeElement).toBe(input);
   });
 });

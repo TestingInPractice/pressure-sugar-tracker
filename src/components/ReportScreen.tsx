@@ -62,8 +62,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       const text = await recognizeTextFromImage(file);
       formatted = formatPressureReading(parsePressureText(text));
       message = formatted === ''
-        ? 'Не удалось распознать. Попробуйте другое фото'
-        : `Готово: ${formatted}`;
+        ? 'Распознать не удалось. Введите значение вручную'
+        : `Распознано: ${formatted}. Проверьте и исправьте при необходимости.`;
       if (formatted === '') status = 'error';
     } catch {
       status = 'error';
@@ -234,6 +234,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
                        photoInitial ??
                        (numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : undefined)}
               photoResult={editingEntry ? undefined : { status: ocrStatus as 'idle' | 'done' | 'error', message: photoMessage }}
+              draftFieldId={!editingEntry && photoInitial ? bpField?.id : undefined}
               onSave={v => void saveEntry(v)}
               onCancel={() => { setEditingEntry(null); setShowForm(false); setPhotoInitial(undefined); setOcrStatus('idle'); setPhotoMessage(''); }}
             />

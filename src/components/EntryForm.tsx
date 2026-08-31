@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import type { Field } from '../types';
 import { validateEntry } from '../logic/validation';
-import { recognizeTextFromImage } from '../logic/ocr';
-import { parsePressureText, formatPressureReading } from '../logic/ocr-parse';
 
 export interface PhotoResult {
   status: 'idle' | 'done' | 'error';
   message: string;
 }
-
-type OcrStatus = 'idle' | 'working' | 'done' | 'error';
 
 interface Props {
   fields: Field[];
@@ -22,35 +18,9 @@ interface Props {
 export default function EntryForm({ fields, initial, onSave, onCancel, photoResult }: Props) {
   const [values, setValues] = useState<Record<string, string | number>>(initial ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle');
-  const [ocrMessage, setOcrMessage] = useState('');
-
-  const bpField = fields.find(f => f.name === 'ВД / НД / П');
 
   const set = (id: string, v: string) =>
     setValues(prev => ({ ...prev, [id]: v }));
-
-  const handlePhoto = async (file: File | undefined) => {
-    if (!file || !bpField || ocrStatus === 'working') return;
-    setOcrStatus('working');
-    setOcrMessage('');
-    try {
-      const text = await recognizeTextFromImage(file);
-      const reading = parsePressureText(text);
-      const formatted = formatPressureReading(reading);
-      if (formatted === '') {
-        setOcrStatus('error');
-        setOcrMessage('Не удалось распознать. Попробуйте другое фото');
-        return;
-      }
-      set(bpField.id, formatted);
-      setOcrStatus('done');
-      setOcrMessage(`Готово: ${formatted}`);
-    } catch {
-      setOcrStatus('error');
-      setOcrMessage('Распознавание недоступно. Попробуйте ещё раз');
-    }
-  };
 
   const submit = () => {
     const errs = validateEntry(fields, values);
@@ -70,23 +40,12 @@ export default function EntryForm({ fields, initial, onSave, onCancel, photoResu
             <input inputMode="decimal" value={String(values[f.id] ?? '')}
                    onChange={e => set(f.id, e.target.value)} />
           ) : f.unit ? (
-            <input type="text" placeholder={f.name === 'ВД / НД / П' ? '120/70/100' : ''}
+            <input type="text" placeholder=""
                    value={String(values[f.id] ?? '')}
                    onChange={e => set(f.id, e.target.value)} />
           ) : (
             <textarea value={String(values[f.id] ?? '')}
                       onChange={e => set(f.id, e.target.value)} />
-          )}
-          {f.name === 'ВД / НД / П' && (
-            <span className="photo-row">
-              <label className="photo-btn">
-                {ocrStatus === 'working' ? 'Распознаю…' : 'Фото'}
-                <input type="file" accept="image/*" aria-label="Фото" hidden
-                       onChange={e => { void handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
-              </label>
-              {ocrStatus === 'done' && <em className="ok">{ocrMessage}</em>}
-              {ocrStatus === 'error' && <em className="error">{ocrMessage}</em>}
-            </span>
           )}
           {errors[f.id] && <em className="error">{errors[f.id]}</em>}
         </label>

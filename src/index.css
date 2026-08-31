@@ -940,29 +940,18 @@ p.error {
 .print-title { display: none; }
 
 /* ============================================================
-   Кнопка «Фото» (OCR) в форме записи
+   Кнопка «Фото» (label) на главном экране
    ============================================================ */
 
-.photo-row {
-  display: block;
-  margin-top: 0.4rem;
-}
-.photo-btn {
+.photo-entry {
   display: inline-block;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid #2563eb;
-  border-radius: 0.4rem;
-  color: #2563eb;
   cursor: pointer;
-  font-size: 0.9rem;
+  padding: 10px 16px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
   user-select: none;
-}
-.photo-btn:hover {
-  background: #2563eb;
-  color: #fff;
-}
-.photo-row em.ok {
-  color: #16a34a;
-  font-style: normal;
-  margin-left: 0.6rem;
 }

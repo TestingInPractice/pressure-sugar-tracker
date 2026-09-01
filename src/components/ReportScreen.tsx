@@ -5,7 +5,13 @@ import { genId } from '../logic/report-config';
 import { datetimeFieldId, filterByRange } from '../logic/print-filter';
 import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
 import { onEntryRecorded, toLocalInputValue } from '../logic/reminders';
-import { recognizeTextFromImage } from '../logic/ocr';
+import { recognizeOfflinePressure } from '../logic/ocr-offline';
+import {
+  recognizeVisionPressure,
+  loadVisionSettings,
+  saveVisionSettings,
+  type VisionSettings,
+} from '../logic/vision-ocr';
 import { parsePressureText, formatPressureReading } from '../logic/ocr-parse';
 import { classifySync, plural } from '../logic/sync';
 import { getSyncState, putSyncState } from '../db/db';
@@ -34,6 +40,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [photoMessage, setPhotoMessage] = useState('');
   const [photoInitial, setPhotoInitial] = useState<Record<string, string | number> | undefined>(undefined);
   const [photoSeq, setPhotoSeq] = useState(0);
+  const [showVisionCfg, setShowVisionCfg] = useState(false);
+  const [visionCfg, setVisionCfg] = useState<VisionSettings>(() => loadVisionSettings());
   const fileRef = useRef<HTMLInputElement | null>(null);
   const { settings } = useSettings();
 
@@ -60,12 +68,29 @@ export default function ReportScreen({ reportId, onBack }: Props) {
     let formatted = '';
     let status: 'done' | 'error' = 'done';
     try {
-      const text = await recognizeTextFromImage(file);
-      formatted = formatPressureReading(parsePressureText(text));
-      message = formatted === ''
-        ? 'Распознать не удалось. Введите значение вручную'
-        : `Распознано: ${formatted}. Проверьте и исправьте при необходимости.`;
-      if (formatted === '') status = 'error';
+      if (visionCfg.apiKey.trim() !== '') {
+        try {
+          const v = await recognizeVisionPressure(file, visionCfg);
+          formatted = v.text;
+          if (formatted !== '') {
+            message = `Распознано: ${formatted}. Проверьте и исправьте при необходимости.`;
+          }
+        } catch {
+          // прокси недоступен — пробуем оффлайн-декодер
+        }
+      }
+      if (formatted === '') {
+        const { text, confidence } = await recognizeOfflinePressure(file);
+        formatted = formatPressureReading(parsePressureText(text));
+        if (formatted === '') {
+          status = 'error';
+          message = 'Распознать не удалось. Введите значение вручную';
+        } else if (Number.isFinite(confidence) && confidence < 0.7) {
+          message = `Распознано неуверенно: ${formatted}. Проверьте и исправьте.`;
+        } else {
+          message = `Распознано: ${formatted}. Проверьте и исправьте при необходимости.`;
+        }
+      }
     } catch {
       status = 'error';
       message = 'Распознавание недоступно. Попробуйте ещё раз';
@@ -204,6 +229,24 @@ export default function ReportScreen({ reportId, onBack }: Props) {
               </button>
               <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Фото"
                      onChange={e => { void handlePhoto(e.target.files?.[0]); e.target.value = ''; }} />
+              <button type="button" className="no-print"
+                      onClick={() => setShowVisionCfg(v => !v)}>Настройки распознавания</button>
+              {showVisionCfg && (
+                <div className="vision-cfg no-print">
+                  <input aria-label="Адрес vision-прокси" value={visionCfg.baseUrl}
+                         onChange={e => setVisionCfg(c => ({ ...c, baseUrl: e.target.value }))} />
+                  <input aria-label="API-ключ vision" type="password" value={visionCfg.apiKey}
+                         placeholder={visionCfg.apiKey === '' ? `ключ (не хранится в коде, только в браузере)` : ''}
+                         onChange={e => setVisionCfg(c => ({ ...c, apiKey: e.target.value }))} />
+                  <input aria-label="Модель vision" value={visionCfg.model}
+                         onChange={e => setVisionCfg(c => ({ ...c, model: e.target.value }))} />
+                  <div className="btn-row">
+                    <button type="button" className="primary"
+                            onClick={() => { saveVisionSettings(visionCfg); setShowVisionCfg(false); }}>Сохранить</button>
+                    <button type="button" onClick={() => { setVisionCfg(loadVisionSettings()); setShowVisionCfg(false); }}>Отмена</button>
+                  </div>
+                </div>
+              )}
             </>
           )}
           <button className="no-print"

@@ -1,6 +1,7 @@
 import type { Report, Entry, SyncFileResult } from '../types';
 import { buildSyncJson, syncFilename } from './sync';
 import { getSyncFileHandle, putSyncFileHandle } from '../db/db';
+import { writeLocalSnapshot } from './opfs';
 
 function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === 'AbortError';
@@ -59,6 +60,9 @@ export async function saveSyncFile(
   const json = buildSyncJson(report, entries, syncedAtMs);
   const name = syncFilename(report.name);
   const file = new File([json], name, { type: 'application/json' });
+
+  // Тихая локальная копия в OPFS — не влияет на статус сохранения файла.
+  void writeLocalSnapshot(report, entries, syncedAtMs);
 
   if (hasFsAccess()) {
     const viaPicker = await saveViaPicker(report, json, name);

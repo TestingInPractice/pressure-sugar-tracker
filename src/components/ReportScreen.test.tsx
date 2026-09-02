@@ -6,12 +6,13 @@ import ReportScreen from './ReportScreen';
 import { db, putReport, putEntry, getSyncState, putSyncState } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
 
-vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(true) }));
+vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue({ kind: 'updated' }) }));
 const saveSyncMock = vi.mocked(saveSyncFile);
 
 beforeEach(async () => {
   await db.delete(); await db.open();
   saveSyncMock.mockClear();
+  saveSyncMock.mockResolvedValue({ kind: 'updated' });
 });
 
 const seed = () =>
@@ -183,13 +184,14 @@ const clickSync = async () => {
 
 it('first sync creates sync state, saves file and reports creation', async () => {
   await seedWithEntry(0);
+  saveSyncMock.mockResolvedValue({ kind: 'created' });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   await clickSync();
   await waitFor(async () => {
     const st = await getSyncState('p1');
     expect(st?.entries).toHaveLength(1);
   });
-  expect(await screen.findByText(/Синхронизация создана \(1/)).toBeInTheDocument();
+  expect(await screen.findByText(/Создан файл синхронизации \(1/)).toBeInTheDocument();
   expect(saveSyncMock).toHaveBeenCalledTimes(1);
   const [argReport, argEntries] = saveSyncMock.mock.calls[0];
   expect(argReport.name).toBe('Отчёт АД');
@@ -262,7 +264,7 @@ it('conflict with decline leaves sync state and file untouched', async () => {
 
 it('cancelled save (AbortError) reports cancellation without writing sync state', async () => {
   await seedWithEntry(0);
-  saveSyncMock.mockResolvedValue(false);
+  saveSyncMock.mockResolvedValue({ kind: 'cancelled' });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   await clickSync();
   expect(await screen.findByText('Сохранение отменено')).toBeInTheDocument();

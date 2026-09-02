@@ -3,11 +3,14 @@ import type { Report, Entry, Settings, Snapshot, SyncState } from '../types';
 
 interface SettingsRow extends Settings { key: string }
 
+interface SyncFileRow { reportId: string; handle: FileSystemFileHandle }
+
 class TrackerDb extends Dexie {
   reports!: Table<Report, string>;
   entries!: Table<Entry, string>;
   settings!: Table<SettingsRow, string>;
   syncs!: Table<SyncState, string>;
+  syncFiles!: Table<SyncFileRow, string>;
 
   constructor() {
     super('tracker-db');
@@ -18,6 +21,9 @@ class TrackerDb extends Dexie {
     });
     this.version(2).stores({
       syncs: 'reportId',
+    });
+    this.version(3).stores({
+      syncFiles: 'reportId',
     });
   }
 }
@@ -100,4 +106,17 @@ export async function putSyncState(state: SyncState): Promise<void> {
 
 export async function deleteSyncState(reportId: string): Promise<void> {
   await db.syncs.delete(reportId);
+}
+
+export async function getSyncFileHandle(reportId: string): Promise<FileSystemFileHandle | undefined> {
+  const row = await db.syncFiles.get(reportId);
+  return row?.handle;
+}
+
+export async function putSyncFileHandle(reportId: string, handle: FileSystemFileHandle): Promise<void> {
+  await db.syncFiles.put({ reportId, handle });
+}
+
+export async function deleteSyncFileHandle(reportId: string): Promise<void> {
+  await db.syncFiles.delete(reportId);
 }

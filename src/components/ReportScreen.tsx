@@ -101,7 +101,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       }
       const now = Date.now();
       const saved = await saveSyncFile(report, currentEntries, now);
-      if (!saved) {
+      if (saved.kind === 'cancelled') {
         setSyncMsg('Сохранение отменено');
         return;
       }
@@ -109,10 +109,14 @@ export default function ReportScreen({ reportId, onBack }: Props) {
         reportId, reportName: report.name, fields: report.fields,
         entries: currentEntries, syncedAt: now,
       });
-      if (outcome.kind === 'append-only') {
+      if (saved.kind === 'created') {
         setSyncMsg(!synced
-          ? `Синхронизация создана (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`
-          : `Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
+          ? `Создан файл синхронизации (${currentEntries.length} ${plural(currentEntries.length, ['запись', 'записи', 'записей'])})`
+          : 'Файл синхронизации создан');
+        return;
+      }
+      if (outcome.kind === 'append-only') {
+        setSyncMsg(`Синхронизировано: добавлено ${outcome.added.length} ${plural(outcome.added.length, ['строка', 'строки', 'строк'])} (файл обновлён)`);
       } else {
         setSyncMsg('Файл обновлён');
       }

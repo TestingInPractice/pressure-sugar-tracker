@@ -45,6 +45,13 @@ export interface SyncState {
   syncedAt: number; // мс, время последней записи файла
 }
 
+/** Результат сохранения файла синхронизации. */
+export type SyncFileResult =
+  | { kind: 'shared' }       // отдано через Web Share
+  | { kind: 'created' }      // создан новый файл (File System Access или download)
+  | { kind: 'updated' }      // перезаписан тот же файл (сохранённый handle)
+  | { kind: 'cancelled' };   // пользователь отменил выбор/шаринг
+
 export interface Settings {
   masterOn: boolean;
 }

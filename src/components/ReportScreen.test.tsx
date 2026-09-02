@@ -9,26 +9,9 @@ import { saveSyncFile } from '../logic/sync-file';
 vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue(true) }));
 const saveSyncMock = vi.mocked(saveSyncFile);
 
-import { recognizeOfflinePressure } from '../logic/ocr-offline';
-vi.mock('../logic/ocr-offline', () => ({ recognizeOfflinePressure: vi.fn() }));
-const mockRecognize = vi.mocked(recognizeOfflinePressure);
-
-import { recognizeVisionPressure, loadVisionSettings, saveVisionSettings } from '../logic/vision-ocr';
-vi.mock('../logic/vision-ocr', () => ({
-  recognizeVisionPressure: vi.fn(),
-  loadVisionSettings: vi.fn(),
-  saveVisionSettings: vi.fn(),
-}));
-const mockVision = vi.mocked(recognizeVisionPressure);
-const mockLoadVisionSettings = vi.mocked(loadVisionSettings);
-const mockSaveVisionSettings = vi.mocked(saveVisionSettings);
-
 beforeEach(async () => {
   await db.delete(); await db.open();
-  saveSyncMock.mockClear(); mockRecognize.mockReset();
-  mockVision.mockReset(); mockLoadVisionSettings.mockReset(); mockSaveVisionSettings.mockReset();
-  localStorage.clear();
-  mockLoadVisionSettings.mockReturnValue({ baseUrl: 'http://127.0.0.1:8787/v1', apiKey: '', model: 'qwen/qwen3-vl-32b-instruct' });
+  saveSyncMock.mockClear();
 });
 
 const seed = () =>
@@ -293,116 +276,4 @@ it('saveSyncFile rejection reports error without writing sync state', async () =
   await clickSync();
   expect(await screen.findByText('Не удалось выполнить синхронизацию. Попробуйте ещё раз')).toBeInTheDocument();
   expect(await getSyncState('p1')).toBeUndefined();
-});
-
-const seedWithBP = () =>
-  putReport({ id: 'pBp', name: 'БП', archived: false, createdAt: 1, updatedAt: 1,
-    fields: [
-      { id: 'bp', name: 'ВД / НД / П', type: 'text', required: false, width: 30 },
-      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
-    ] });
-
-it('показывает кнопку «Фото» при наличии поля «ВД / НД / П»', async () => {
-  await seedWithBP();
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  expect(await screen.findByLabelText('Фото')).toBeInTheDocument();
-});
-
-it('скрывает кнопку «Фото» при отсутствии поля', async () => {
-  await seed();
-  render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  await screen.findByRole('button', { name: '+ Запись' });
-  expect(screen.queryByLabelText('Фото')).toBeNull();
-});
-
-it('успех: открывает форму с датой и распознанным значением', async () => {
-  await seedWithBP();
-  mockRecognize.mockResolvedValue({ text: '120 80 65', rows: [], confidence: 1 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('120/80/65');
-  const date = screen.getByLabelText(/Дата и время/) as HTMLInputElement;
-  expect(date.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-  expect(await screen.findByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.')).toBeInTheDocument();
-});
-
-it('мусор: форма открывается, поле пусто, сообщение ошибки', async () => {
-  await seedWithBP();
-  mockRecognize.mockResolvedValue({ text: 'zxcvbn', rows: [], confidence: 0 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('');
-  expect((screen.getByLabelText(/Дата и время/) as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-  expect(await screen.findByText('Распознать не удалось. Введите значение вручную')).toBeInTheDocument();
-});
-
-it('worker ошибка: форма открывается, сообщение «Недоступно»', async () => {
-  await seedWithBP();
-  mockRecognize.mockRejectedValue(new Error('w'));
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('');
-  expect(await screen.findByText('Распознавание недоступно. Попробуйте ещё раз')).toBeInTheDocument();
-});
-
-it('после cancel статус сбрасывается', async () => {
-  await seedWithBP();
-  mockRecognize.mockResolvedValue({ text: '120 80 65', rows: [], confidence: 1 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  await screen.findByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.');
-  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
-  fireEvent.click(screen.getByRole('button', { name: '+ Запись' }));
-  expect(screen.queryByText('Распознано: 120/80/65. Проверьте и исправьте при необходимости.')).toBeNull();
-});
-
-it('vision: при заданном ключе распознавание идёт через vision и оффлайн не вызывается', async () => {
-  await seedWithBP();
-  mockLoadVisionSettings.mockReturnValue({ baseUrl: 'http://127.0.0.1:8787/v1', apiKey: 'sk-test', model: 'm' });
-  mockVision.mockResolvedValue({ text: '105/70/96', confidence: 1 });
-  mockRecognize.mockResolvedValue({ text: '13 37', rows: [], confidence: 1 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('105/70/96');
-  expect(mockVision).toHaveBeenCalledTimes(1);
-  expect(mockRecognize).not.toHaveBeenCalled();
-});
-
-it('vision: при ошибке прокси падает обратно на оффлайн-декодер', async () => {
-  await seedWithBP();
-  mockLoadVisionSettings.mockReturnValue({ baseUrl: 'http://127.0.0.1:8787/v1', apiKey: 'sk-test', model: 'm' });
-  mockVision.mockRejectedValue(new Error('fetch failed'));
-  mockRecognize.mockResolvedValue({ text: '120 80 65', rows: [], confidence: 1 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('120/80/65');
-  expect(mockRecognize).toHaveBeenCalledTimes(1);
-});
-
-it('vision: при мусорном ответе модели тоже падает на оффлайн', async () => {
-  await seedWithBP();
-  mockLoadVisionSettings.mockReturnValue({ baseUrl: 'http://127.0.0.1:8787/v1', apiKey: 'sk-test', model: 'm' });
-  mockVision.mockResolvedValue({ text: '', confidence: 0 });
-  mockRecognize.mockResolvedValue({ text: '120 80 65', rows: [], confidence: 1 });
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.change(await screen.findByLabelText('Фото'), { target: { files: [new File(['x'], 'bp.png', { type: 'image/png' })] } });
-  const bp = await screen.findByLabelText(/в[дд] \/ н[дд] \/ п/i);
-  expect(bp).toHaveValue('120/80/65');
-});
-
-it('vision: кнопка «Настройки распознавания» сохраняет ключ в localStorage', async () => {
-  await seedWithBP();
-  render(<ReportScreen reportId="pBp" onBack={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Настройки распознавания' }));
-  const keyInput = screen.getByLabelText('API-ключ vision');
-  fireEvent.change(keyInput, { target: { value: 'sk-newkey' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  expect(mockSaveVisionSettings).toHaveBeenCalledWith(
-    expect.objectContaining({ apiKey: 'sk-newkey' }),
-  );
 });

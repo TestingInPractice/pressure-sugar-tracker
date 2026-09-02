@@ -939,46 +939,4 @@ p.error {
 }
 .print-title { display: none; }
 
-/* ============================================================
-   Кнопка «Фото» (label) на главном экране
-   ============================================================ */
 
-.photo-entry {
-  display: inline-block;
-  cursor: pointer;
-  padding: 10px 16px;
-  margin: 0;
-  border: 1px solid transparent;
-  border-radius: var(--r-md);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-weight: 600;
-  user-select: none;
-}
-
-/* Сообщение о результате распознавания фото */
-.photo-msg-done {
-  background: var(--warning-bg);
-  border-left-color: var(--warning-border);
-  color: var(--warning-text);
-}
-
-.photo-msg-error {
-  background: var(--danger-tint);
-  border-left-color: var(--danger);
-  color: var(--danger);
-}
-
-/* Поле-черновик, значение которого пришло из распознавания фото */
-.draft-field {
-  border: 1px solid var(--warning-border);
-  background: var(--warning-bg);
-  border-radius: var(--r-sm);
-  padding: 10px 12px;
-  margin-top: 6px;
-}
-
-.draft-field input {
-  font-weight: 700;
-  color: var(--warning-text);
-}

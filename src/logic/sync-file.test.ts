@@ -28,6 +28,41 @@ describe('saveSyncFile', () => {
     vi.unstubAllGlobals();
   });
 
+  it('falls back to download when share is rejected with NotAllowedError', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+    vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+    let clicked = '';
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(tag => {
+      const el = origCreate(tag);
+      if (tag === 'a') el.addEventListener('click', () => { clicked = 'dl'; });
+      return el;
+    });
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
+    expect(clicked).toBe('dl');
+    expect(share).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('falls back to download when share throws a generic error', async () => {
+    const share = vi.fn().mockRejectedValue(new TypeError('share not available'));
+    vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+    let clicked = '';
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(tag => {
+      const el = origCreate(tag);
+      if (tag === 'a') el.addEventListener('click', () => { clicked = 'dl'; });
+      return el;
+    });
+    await expect(saveSyncFile(report, entries, 1000)).resolves.toBe(true);
+    expect(clicked).toBe('dl');
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('falls back to <a download> when share is unavailable', async () => {
     vi.stubGlobal('navigator', { ...navigator, share: undefined });
     vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });

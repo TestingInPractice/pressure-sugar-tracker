@@ -13,11 +13,10 @@ export async function saveSyncFile(
   if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
+      return true;
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return false;
-      throw e;
     }
-    return true;
   }
 
   const url = URL.createObjectURL(file);

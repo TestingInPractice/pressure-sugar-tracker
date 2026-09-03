@@ -32,7 +32,7 @@ export const db = new TrackerDb();
 
 export async function getSettings(): Promise<Settings> {
   const row = await db.settings.get('app');
-  return { masterOn: row?.masterOn ?? true };
+  return { masterOn: row?.masterOn ?? true, syncOn: row?.syncOn ?? false };
 }
 
 export async function saveSettings(s: Settings): Promise<void> {

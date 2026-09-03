@@ -14,12 +14,13 @@ import type { Report } from './types';
 type Tab = 'reports' | 'archive' | 'more';
 
 export default function App() {
-  const { settings, setMasterOn } = useSettings();
+  const { settings, setMasterOn, setSyncOn } = useSettings();
   const [tab, setTab] = useState<Tab>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [, setDataVersion] = useState(0);
   const masterOn = settings?.masterOn ?? false;
+  const syncOn = settings?.syncOn ?? false;
   const { dueTitles, dismissDue } = useReminderEngine(masterOn);
 
   useEffect(() => {
@@ -43,7 +44,10 @@ export default function App() {
       <header className="app-header">
         <h1>{APP_TITLE}</h1>
         {settings && (
-          <MasterSwitch on={masterOn} onToggle={toggleMaster} />
+          <div className="app-switches">
+            <MasterSwitch on={masterOn} onToggle={toggleMaster} />
+            <MasterSwitch label="Синхронизация" on={syncOn} onToggle={setSyncOn} />
+          </div>
         )}
       </header>
       {dueTitles.length > 0 && (

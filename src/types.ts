@@ -71,6 +71,7 @@ export type SyncFileResult =
 
 export interface Settings {
   masterOn: boolean;
+  syncOn: boolean;
 }
 
 export interface Snapshot {

@@ -1,9 +1,9 @@
-interface Props { on: boolean; disabled?: boolean; onToggle: (v: boolean) => void }
+interface Props { on: boolean; disabled?: boolean; label?: string; onToggle: (v: boolean) => void }
 
-export default function MasterSwitch({ on, disabled, onToggle }: Props) {
+export default function MasterSwitch({ on, disabled, label = 'Напоминания', onToggle }: Props) {
   return (
     <label className="master-switch">
-      <span>Напоминания</span>
+      <span>{label}</span>
       <input
         type="checkbox"
         role="switch"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDue, onFired, toLocalInputValue, normalizeReminder } from './reminders';
+import { computeDue, onFired, toLocalInputValue, normalizeReminder, nowLocalInput } from './reminders';
 
 process.env.TZ = 'UTC';
 
@@ -98,5 +98,15 @@ describe('toLocalInputValue', () => {
     const iso = new Date('2026-08-24T06:00:00.000Z').toISOString();
     const v = toLocalInputValue(iso);
     expect(v).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  });
+});
+
+describe('nowLocalInput', () => {
+  it('formats a given timestamp as YYYY-MM-DDTHH:mm', () => {
+    const t = Date.parse('2026-08-24T15:07:00Z');
+    expect(nowLocalInput(t)).toBe('2026-08-24T15:07');
+  });
+  it('defaults to current time', () => {
+    expect(nowLocalInput()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
 });

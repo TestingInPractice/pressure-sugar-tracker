@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { Report, Entry } from '../types';
 import { getReport, listEntries, putEntry, deleteEntry, putReport, deleteReport } from '../db/db';
 import { genId } from '../logic/report-config';
 import { datetimeFieldId, filterByRange } from '../logic/print-filter';
 import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
-import { onEntryRecorded } from '../logic/reminders';
+import { onEntryRecorded, nowLocalInput } from '../logic/reminders';
 import { classifySync, plural } from '../logic/sync';
 import { getSyncState, putSyncState } from '../db/db';
-import { saveSyncFile } from '../logic/sync-file';
+import { saveSyncFile, autoSyncIfHandle } from '../logic/sync-file';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
@@ -26,12 +26,26 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [showRange, setShowRange] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [syncMsg, setSyncMsg] = useState('');
+  const [autoSyncHint, setAutoSyncHint] = useState('');
   const { settings } = useSettings();
+  const autoSyncReady = useRef(false);
 
   useEffect(() => {
     void getReport(reportId).then(r => setReport(r ?? null));
     void listEntries(reportId).then(setEntries);
   }, [reportId]);
+
+  useEffect(() => {
+    if (!settings?.syncOn || !report) return;
+    if (!autoSyncReady.current) { autoSyncReady.current = true; return; }
+    const t = setTimeout(async () => {
+      const res = await autoSyncIfHandle(report, entries);
+      setAutoSyncHint(res === 'no-handle'
+        ? 'Автосинхронизация: сначала выберите файл кнопкой «Синхронизация»'
+        : '');
+    }, 500);
+    return () => clearTimeout(t);
+  }, [entries, report, settings?.syncOn]);
 
   if (!report) return <p>Не найден</p>;
 
@@ -48,6 +62,12 @@ export default function ReportScreen({ reportId, onBack }: Props) {
       const cur = vals[nid];
       if (cur === undefined || String(cur).trim() === '') {
         vals[nid] = nextEntryNumber(entries, nid) ?? 1;
+      }
+    }
+    if (!editingEntry && dtFieldId !== undefined) {
+      const cur = vals[dtFieldId];
+      if (cur === undefined || String(cur).trim() === '') {
+        vals[dtFieldId] = nowLocalInput();
       }
     }
     await putEntry({ id: editingEntry?.id ?? genId('ent'), reportId, values: vals,
@@ -147,6 +167,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
           <button className="no-print" onClick={() => void syncReport()}>Синхронизация</button>
           {syncMsg && <p className="hint no-print">{syncMsg}</p>}
+          {autoSyncHint && <p className="hint no-print">{autoSyncHint}</p>}
           <button className="no-print primary"
                   onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
           <button className="no-print"
@@ -179,7 +200,12 @@ export default function ReportScreen({ reportId, onBack }: Props) {
               key={editingEntry?.id ?? 'new'}
               fields={report.fields}
               initial={editingEntry?.values ??
-                       (numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : undefined)}
+                (numId || dtFieldId
+                  ? {
+                      ...(numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : {}),
+                      ...(dtFieldId ? { [dtFieldId]: nowLocalInput() } : {}),
+                    }
+                  : undefined)}
               onSave={v => void saveEntry(v)}
               onCancel={() => { setEditingEntry(null); setShowForm(false); }}
             />

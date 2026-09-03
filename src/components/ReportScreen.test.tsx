@@ -3,16 +3,22 @@ import { it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ReportScreen from './ReportScreen';
-import { db, putReport, putEntry, getSyncState, putSyncState } from '../db/db';
-import { saveSyncFile } from '../logic/sync-file';
+import { db, putReport, putEntry, getSyncState, putSyncState, saveSettings } from '../db/db';
+import { saveSyncFile, autoSyncIfHandle } from '../logic/sync-file';
 
-vi.mock('../logic/sync-file', () => ({ saveSyncFile: vi.fn().mockResolvedValue({ kind: 'updated' }) }));
+vi.mock('../logic/sync-file', () => ({
+  saveSyncFile: vi.fn().mockResolvedValue({ kind: 'updated' }),
+  autoSyncIfHandle: vi.fn().mockResolvedValue('no-handle'),
+}));
 const saveSyncMock = vi.mocked(saveSyncFile);
+const autoSyncMock = vi.mocked(autoSyncIfHandle);
 
 beforeEach(async () => {
   await db.delete(); await db.open();
   saveSyncMock.mockClear();
   saveSyncMock.mockResolvedValue({ kind: 'updated' });
+  autoSyncMock.mockClear();
+  autoSyncMock.mockResolvedValue('no-handle');
 });
 
 const seed = () =>
@@ -116,7 +122,7 @@ it('keeps report when delete confirm declined', async () => {
   confirmSpy.mockRestore();
 });
 
-it('prefills next row number for new entry and restores it if cleared', async () => {
+it('hides the auto numbering field but stamps the next number and prefills current datetime', async () => {
   await putReport({ id: 'p3', name: 'Р3',
     fields: [
       { id: 'n', name: 'Номер', type: 'number', required: false, width: 30 },
@@ -126,13 +132,14 @@ it('prefills next row number for new entry and restores it if cleared', async ()
   await putEntry({ id: 'e9', reportId: 'p3', values: { n: 7, d: '2026-08-23T10:00' }, createdAt: 1 });
   render(<ReportScreen reportId="p3" onBack={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
-  expect(await screen.findByLabelText('Номер')).toHaveValue('8');
-  fireEvent.change(screen.getByLabelText('Номер'), { target: { value: '' } });
-  fireEvent.change(screen.getByLabelText(/Дата и время/), { target: { value: '2026-08-24T09:00' } });
+  expect(screen.queryByLabelText('Номер')).toBeNull();
+  const dtVal = (screen.getByLabelText(/Дата и время/) as HTMLInputElement).value;
+  expect(dtVal).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   await waitFor(async () => {
     const rows = await db.entries.where('reportId').equals('p3').toArray();
-    const saved = rows.find(r => r.values.d === '2026-08-24T09:00');
+    expect(rows).toHaveLength(2);
+    const saved = rows.find(r => r.values.d !== '2026-08-23T10:00');
     expect(saved?.values.n).toBe(8);
   });
 });
@@ -276,4 +283,26 @@ it('saveSyncFile rejection reports error without writing sync state', async () =
   await clickSync();
   expect(await screen.findByText('Не удалось выполнить синхронизацию. Попробуйте ещё раз')).toBeInTheDocument();
   expect(await getSyncState('p1')).toBeUndefined();
+});
+
+it('auto-syncs silently when enabled and hints when no file selected', async () => {
+  autoSyncMock.mockResolvedValue('no-handle');
+  await seedWithEntry(0);
+  await saveSettings({ masterOn: true, syncOn: true });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(autoSyncMock).toHaveBeenCalled());
+  expect(await screen.findByText(/Автосинхронизация/)).toBeInTheDocument();
+});
+
+it('shows no hint when auto-sync writes to the file', async () => {
+  autoSyncMock.mockResolvedValue('written');
+  await seedWithEntry(0);
+  await saveSettings({ masterOn: true, syncOn: true });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(autoSyncMock).toHaveBeenCalled());
+  expect(screen.queryByText(/Автосинхронизация/)).toBeNull();
 });

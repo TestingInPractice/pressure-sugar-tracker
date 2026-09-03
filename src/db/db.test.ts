@@ -16,8 +16,9 @@ describe('settings', () => {
     expect((await getSettings()).masterOn).toBe(true);
   });
   it('persists saved value', async () => {
-    await saveSettings({ masterOn: false });
+    await saveSettings({ masterOn: false, syncOn: true });
     expect((await getSettings()).masterOn).toBe(false);
+    expect((await getSettings()).syncOn).toBe(true);
   });
 });
 

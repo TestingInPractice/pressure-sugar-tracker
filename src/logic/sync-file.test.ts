@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { saveSyncFile } from './sync-file';
-import type { Entry, Report } from '../types';
+import { saveSyncFile, autoSyncIfHandle } from './sync-file';
+import type { Entry, Report, SyncState } from '../types';
 
 const handleStore = new Map<string, FileSystemFileHandle>();
+const syncStore = new Map<string, SyncState>();
 
 vi.mock('../db/db', () => ({
   getSyncFileHandle: vi.fn(async (id: string) => handleStore.get(id)),
   putSyncFileHandle: vi.fn(async (id: string, h: FileSystemFileHandle) => { handleStore.set(id, h); }),
+  getSyncState: vi.fn(async (id: string) => syncStore.get(id)),
+  putSyncState: vi.fn(async (s: SyncState) => { syncStore.set(s.reportId, s); }),
 }));
 
 const report: Pick<Report, 'id' | 'name' | 'fields'> = { id: 'r1', name: 'Отчёт АД', fields: [] };
@@ -25,6 +28,7 @@ function makeHandle(writes: string[]) {
 
 beforeEach(() => {
   handleStore.clear();
+  syncStore.clear();
   vi.unstubAllGlobals();
   delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
   delete (globalThis as unknown as { FileSystemFileHandle?: unknown }).FileSystemFileHandle;
@@ -123,5 +127,30 @@ describe('saveSyncFile', () => {
     vi.stubGlobal('FileSystemFileHandle', class {});
     const res = await saveSyncFile(report, entries, 1000);
     expect(res).toEqual({ kind: 'cancelled' });
+  });
+});
+
+describe('autoSyncIfHandle', () => {
+  it('returns no-handle when no sync file was ever selected', async () => {
+    const res = await autoSyncIfHandle(report, entries);
+    expect(res).toBe('no-handle');
+  });
+
+  it('writes silently to the stored handle and updates sync state', async () => {
+    const writes: string[] = [];
+    handleStore.set('r1', makeHandle(writes));
+    const res = await autoSyncIfHandle(report, entries);
+    expect(res).toBe('written');
+    expect(writes).toHaveLength(1);
+    expect(syncStore.get('r1')?.reportId).toBe('r1');
+  });
+
+  it('returns noop without writing when data is unchanged from last sync', async () => {
+    const writes: string[] = [];
+    handleStore.set('r1', makeHandle(writes));
+    syncStore.set('r1', { reportId: 'r1', reportName: report.name, fields: report.fields, entries, syncedAt: 1 });
+    const res = await autoSyncIfHandle(report, entries);
+    expect(res).toBe('noop');
+    expect(writes).toHaveLength(0);
   });
 });

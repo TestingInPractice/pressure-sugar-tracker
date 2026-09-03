@@ -88,3 +88,12 @@ export function toLocalInputValue(iso: string | undefined): string {
     `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
   );
 }
+
+/** Текущие локальные дата и время для <input type="datetime-local">: YYYY-MM-DDTHH:mm */
+export function nowLocalInput(now: number = Date.now()): string {
+  const d = new Date(now);
+  return (
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  );
+}

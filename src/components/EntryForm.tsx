@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Field, Entry, BPValues } from '../types';
 import { validateEntry } from '../logic/validation';
+import { numberingFieldId } from '../logic/entry-number';
 
 interface Props {
   fields: Field[];
@@ -12,6 +13,7 @@ interface Props {
 export default function EntryForm({ fields, initial, onSave, onCancel }: Props) {
   const [values, setValues] = useState<Entry['values']>(initial ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const numId = numberingFieldId(fields);
 
   const set = (id: string, v: string) =>
     setValues(prev => ({ ...prev, [id]: v }));
@@ -31,6 +33,7 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
   return (
     <form className="no-print" onSubmit={e => { e.preventDefault(); submit(); }}>
       {fields.map(f => {
+        if (f.id === numId) return null;
         if (f.type === 'bp') {
           const bp = (values[f.id] ?? {}) as BPValues;
           const parts = f.parts ?? [];

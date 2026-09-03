@@ -10,8 +10,20 @@ export function useSettings() {
   }, []);
 
   const setMasterOn = useCallback((masterOn: boolean) => {
-    void saveSettings({ masterOn }).then(() => setSettings({ masterOn }));
+    setSettings(s => {
+      const next = { masterOn, syncOn: s?.syncOn ?? false };
+      void saveSettings(next);
+      return next;
+    });
   }, []);
 
-  return { settings, setMasterOn };
+  const setSyncOn = useCallback((syncOn: boolean) => {
+    setSettings(s => {
+      const next = { masterOn: s?.masterOn ?? true, syncOn };
+      void saveSettings(next);
+      return next;
+    });
+  }, []);
+
+  return { settings, setMasterOn, setSyncOn };
 }

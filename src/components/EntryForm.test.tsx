@@ -29,4 +29,14 @@ describe('EntryForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     expect(saved).toEqual({ bp1: { systolic: '120', diastolic: '80', pulse: '70' } });
   });
+
+  it('hides the auto numbering field but keeps other fields visible', () => {
+    const fields: Field[] = [
+      { id: 'n', name: 'Номер', type: 'number', required: false, width: 30 },
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+    ];
+    renderForm(fields);
+    expect(screen.queryByLabelText('Номер')).toBeNull();
+    expect(screen.getByLabelText(/Дата и время/)).toBeInTheDocument();
+  });
 });

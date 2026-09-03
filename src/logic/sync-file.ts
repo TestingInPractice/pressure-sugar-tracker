@@ -1,6 +1,6 @@
 import type { Report, Entry, SyncFileResult } from '../types';
-import { buildSyncJson, syncFilename } from './sync';
-import { getSyncFileHandle, putSyncFileHandle } from '../db/db';
+import { buildSyncJson, syncFilename, classifySync } from './sync';
+import { getSyncFileHandle, putSyncFileHandle, getSyncState, putSyncState } from '../db/db';
 import { writeLocalSnapshot } from './opfs';
 
 function isAbort(e: unknown): boolean {
@@ -85,5 +85,35 @@ export async function saveSyncFile(
   a.click();
   URL.revokeObjectURL(url);
   return { kind: 'created' };
+}
+
+export type AutoSyncResult = 'written' | 'noop' | 'no-handle' | 'failed';
+
+export async function autoSyncIfHandle(
+  report: Pick<Report, 'id' | 'name' | 'fields'>,
+  entries: Entry[],
+): Promise<AutoSyncResult> {
+  const handle = await getSyncFileHandle(report.id);
+  if (!handle) return 'no-handle';
+  try {
+    if ((await handle.requestPermission({ mode: 'readwrite' })) !== 'granted') return 'failed';
+  } catch {
+    return 'failed';
+  }
+  const synced = await getSyncState(report.id);
+  if (synced && classifySync(entries, synced.entries).kind === 'identical') return 'noop';
+  const now = Date.now();
+  const json = buildSyncJson(report, entries, now);
+  try {
+    await writeHandle(handle, json);
+  } catch {
+    return 'failed';
+  }
+  void writeLocalSnapshot(report, entries, now);
+  await putSyncState({
+    reportId: report.id, reportName: report.name, fields: report.fields,
+    entries, syncedAt: now,
+  });
+  return 'written';
 }
 

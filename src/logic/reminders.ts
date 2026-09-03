@@ -1,7 +1,4 @@
 import type { Reminder, ReminderState } from '../types';
-import { MAX_REPEATS, REPEAT_INTERVAL_MIN } from '../constants';
-
-const INTERVAL_MS = REPEAT_INTERVAL_MIN * 60_000;
 
 export interface DueInput {
   masterOn: boolean;
@@ -10,32 +7,76 @@ export interface DueInput {
   latestEntryAt?: number;
 }
 
-/** true — пора показать внутреннее уведомление. */
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const pad4 = (n: number) => String(n).padStart(4, '0');
+
+function localYmd(now: number): string {
+  const d = new Date(now);
+  return `${pad4(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Локальный timestamp сегодня в HH:MM. */
+function todayTimeToMs(time: string, now: number): number {
+  const d = new Date(now);
+  const [hh = '0', mm = '0'] = time.split(':');
+  d.setHours(Number(hh), Number(mm), 0, 0);
+  return d.getTime();
+}
+
+/** Нормализует Reminder: переносит старый datetime (ISO) в times. */
+export function normalizeReminder(reminder: Reminder | undefined): Reminder | undefined {
+  if (!reminder) return undefined;
+  if (Array.isArray(reminder.times)) return reminder;
+  const legacy = reminder as Reminder & { datetime?: string };
+  if (!legacy.datetime) return undefined;
+  const d = new Date(legacy.datetime);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return {
+    enabled: reminder.enabled,
+    times: [`${pad2(d.getHours())}:${pad2(d.getMinutes())}`],
+  };
+}
+
+function earliestDueTime(rem: Reminder, done: string[], now: number): string | undefined {
+  const candidates = rem.times
+    .filter(time => !done.includes(time) && todayTimeToMs(time, now) <= now)
+    .sort();
+  return candidates[0];
+}
+
+/** true — пора показать уведомление для одного из времён дня. Одно срабатывание на время в день. */
 export function computeDue(input: DueInput, now: number): boolean {
   const { masterOn, reminder, state, latestEntryAt } = input;
-  if (!masterOn || !reminder || !reminder.enabled) return false;
-  const scheduledAt = Date.parse(reminder.datetime);
-  if (Number.isNaN(scheduledAt) || now < scheduledAt) return false;
-  if (latestEntryAt !== undefined && latestEntryAt > scheduledAt) return false;
-  if (!state) return true; // первое срабатывание
-  if (state.repeatsDone >= MAX_REPEATS) return false;
-  if (state.lastNotifiedAt !== undefined && now - state.lastNotifiedAt < INTERVAL_MS) return false;
+  const rem = normalizeReminder(reminder);
+  if (!masterOn || !rem || !rem.enabled || rem.times.length === 0) return false;
+  const day = localYmd(now);
+  const done = state && state.day === day ? state.doneTimes : [];
+  const t = earliestDueTime(rem, done, now);
+  if (t === undefined) return false;
+  if (state && state.day === day && latestEntryAt !== undefined) {
+    return latestEntryAt < todayTimeToMs(t, now);
+  }
   return true;
 }
 
-export function onFired(state: ReminderState | undefined, now: number): ReminderState {
-  return { repeatsDone: (state?.repeatsDone ?? 0) + 1, lastNotifiedAt: now };
+/** Отмечает самое раннее наступившее неотработанное время дня как обработанное. */
+export function onFired(reminder: Reminder, state: ReminderState | undefined, now: number): ReminderState {
+  const rem = normalizeReminder(reminder);
+  const day = localYmd(now);
+  const done = state && state.day === day ? [...state.doneTimes] : [];
+  const t = earliestDueTime(rem ?? { enabled: true, times: [] }, done, now);
+  if (t !== undefined) done.push(t);
+  return { day, doneTimes: done };
 }
 
-export function onEntryRecorded(): ReminderState {
-  return { repeatsDone: 0 };
+/** Сбрасывает отработанные времена для нового дня (вызывается при записи входа). */
+export function onEntryRecorded(now: number): ReminderState {
+  return { day: localYmd(now), doneTimes: [] };
 }
 
 export function onReconfigured(): ReminderState {
-  return { repeatsDone: 0 };
+  return { day: '', doneTimes: [] };
 }
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** Offset-aware ISO → значение для <input type="datetime-local"> в ЛОКАЛЬНЫХ компонентах. */
 export function toLocalInputValue(iso: string | undefined): string {

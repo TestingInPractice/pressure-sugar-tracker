@@ -55,8 +55,8 @@ export default function ReportScreen({ reportId, onBack }: Props) {
     await putEntry({ id: editingEntry?.id ?? genId('ent'), reportId, values: vals,
                      createdAt: editingEntry?.createdAt ?? Date.now() });
     if (report.reminder) {
-      await putReport({ ...report, reminderState: onEntryRecorded(), updatedAt: Date.now() });
-      setReport({ ...report, reminderState: { repeatsDone: 0 } });
+      await putReport({ ...report, reminderState: onEntryRecorded(Date.now()), updatedAt: Date.now() });
+      setReport({ ...report, reminderState: { day: '', doneTimes: [] } });
     }
     setEditingEntry(null); setShowForm(false);
     setEntries(await listEntries(reportId));

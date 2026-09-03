@@ -23,7 +23,7 @@ export async function runEngineTick(
     )) continue;
     fired.push(report.name);
     notify(report.name);
-    await putReport({ ...report, reminderState: onFired(report.reminderState, now) });
+    await putReport({ ...report, reminderState: onFired(report.reminder, report.reminderState, now) });
   }
   return fired;
 }

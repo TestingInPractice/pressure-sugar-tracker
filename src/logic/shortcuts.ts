@@ -2,10 +2,14 @@ export const SHORTCUT_NAME = 'Будильник';
 
 /**
  * Ссылка на команду «Быстрых команд», которая создаёт нативный будильник
- * в штатном приложении «Часы». Время берётся из datetime-local значения.
+ * в штатном приложении «Часы». Время — локальная строка "HH:MM".
  * Команду пользователь создаёт один раз вручную (рецепт в UI).
  */
-export function buildShortcutsUrl(datetimeLocal: string, name = SHORTCUT_NAME): string {
-  const time = datetimeLocal.slice(11, 16);
+export function buildShortcutUrl(time: string, name = SHORTCUT_NAME): string {
   return `shortcuts://run-shortcut?name=${encodeURIComponent(name)}&input=text&text=${encodeURIComponent(time)}`;
+}
+
+/** Ссылки для каждого времени (каждый запуск команды создаёт отдельный будильник). */
+export function buildShortcutUrls(times: string[], name = SHORTCUT_NAME): string[] {
+  return times.map(time => buildShortcutUrl(time, name));
 }

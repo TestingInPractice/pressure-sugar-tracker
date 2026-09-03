@@ -11,12 +11,15 @@ export interface Field {
 
 export interface Reminder {
   enabled: boolean;
-  datetime: string; // ISO 8601
+  /** Местные времена дня в формате "HH:MM", напр. ["08:00", "20:00"]. */
+  times: string[];
 }
 
 export interface ReminderState {
-  repeatsDone: number;
-  lastNotifiedAt?: number;
+  /** Локальная дата "YYYY-MM-DD", к которой относятся doneTimes. */
+  day: string;
+  /** Времена (HH:MM), уже отработавшие в этот день. */
+  doneTimes: string[];
 }
 
 export interface Report {

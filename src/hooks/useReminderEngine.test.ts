@@ -3,14 +3,16 @@ import { runEngineTick } from './useReminderEngine';
 import { db, putReport } from '../db/db';
 import type { Report } from '../types';
 
+process.env.TZ = 'UTC';
+
 beforeEach(async () => { await db.delete(); await db.open(); });
 
-const T0 = Date.parse('2026-08-23T09:00:00Z');
+const T0 = Date.parse('2026-08-23T09:00:00Z'); // местное 09:00 при TZ=UTC
 
 const report: Report = {
   id: 'r1', name: 'Давление', archived: false, createdAt: 0, updatedAt: 0,
   fields: [],
-  reminder: { enabled: true, datetime: new Date(T0).toISOString() },
+  reminder: { enabled: true, times: ['08:00'] },
 };
 
 it('fires due reminder, persists state, reports title', async () => {
@@ -20,7 +22,8 @@ it('fires due reminder, persists state, reports title', async () => {
   expect(titles).toContain('Давление');
   expect(notify).toHaveBeenCalledWith('Давление');
   const saved = (await db.reports.get('r1'))!;
-  expect(saved.reminderState?.repeatsDone).toBe(1);
+  expect(saved.reminderState?.day).toBe('2026-08-23');
+  expect(saved.reminderState?.doneTimes).toEqual(['08:00']);
 });
 
 it('respects master switch', async () => {
@@ -29,7 +32,7 @@ it('respects master switch', async () => {
   expect(titles).toEqual([]);
 });
 
-it('does not refire within 10 minutes', async () => {
+it('does not refire the same time within the day', async () => {
   await putReport(report);
   await runEngineTick(T0, vi.fn());
   const titles = await runEngineTick(T0 + 5 * 60_000, vi.fn());

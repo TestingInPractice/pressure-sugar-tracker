@@ -1,11 +1,9 @@
-function toUtcStamp(iso: string): string {
-  // Наивная строка без зоны (datetime-local) трактуется как UTC — детерминированно на любой машине.
-  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`;
-  const d = new Date(normalized);
+function localStamp(time: string, day: string): string {
+  const d = new Date(`${day}T${time}:00`);
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
-    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
-    `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+    `T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
   );
 }
 
@@ -13,18 +11,14 @@ function esc(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
 }
 
-export function buildIcs(uid: string, title: string, startIso: string): string {
-  const start = toUtcStamp(startIso);
-  const stamp = toUtcStamp(new Date().toISOString());
+function eventLines(uid: string, title: string, startStamp: string): string[] {
   return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//pressure-sugar-tracker//RU',
     'BEGIN:VEVENT',
     `UID:${uid}`,
-    `DTSTAMP:${stamp}`,
-    `DTSTART:${start}`,
-    'DURATION:PT15M',
+    'DTSTAMP:20260101T000000Z',
+    `DTSTART:${startStamp}`,
+    'RRULE:FREQ=DAILY',
+    'DURATION:PT5M',
     `SUMMARY:${esc(title)}`,
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
@@ -32,8 +26,13 @@ export function buildIcs(uid: string, title: string, startIso: string): string {
     'TRIGGER:PT0S',
     'END:VALARM',
     'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n') + '\r\n';
+  ];
+}
+
+/** Строит .ics с ежедневным повторением (RRULE FREQ=DAILY) для каждого времени. */
+export function buildIcs(title: string, times: string[], day: string): string {
+  const events = times.map((time, i) => eventLines(`${i + 1}-${esc(title)}`, title, localStamp(time, day)).join('\r\n'));
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//pressure-sugar-tracker//RU', ...events, 'END:VCALENDAR'].join('\r\n') + '\r\n';
 }
 
 export function icsFilename(_name: string): string {

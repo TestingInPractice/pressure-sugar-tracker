@@ -1,4 +1,16 @@
-export type FieldType = 'number' | 'text' | 'datetime';
+export type FieldType = 'number' | 'text' | 'datetime' | 'bp';
+
+export interface FieldPart {
+  id: string;
+  label: string;
+}
+
+/** Значение композитного поля «Давление»: ВД / НД / П. */
+export interface BPValues {
+  systolic?: string | number;
+  diastolic?: string | number;
+  pulse?: string | number;
+}
 
 export interface Field {
   id: string;
@@ -7,6 +19,8 @@ export interface Field {
   unit?: string;
   required: boolean;
   width: number;
+  /** Только для type === 'bp': подполя ВД/НД/П. */
+  parts?: FieldPart[];
 }
 
 export interface Reminder {
@@ -36,7 +50,7 @@ export interface Report {
 export interface Entry {
   id: string;
   reportId: string;
-  values: Record<string, string | number>;
+  values: Record<string, string | number | BPValues>;
   createdAt: number;
 }
 

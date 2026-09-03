@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import EntryForm from './EntryForm';
 import type { Field } from '../types';
 
@@ -14,5 +14,19 @@ describe('EntryForm', () => {
     ]);
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
+  });
+
+  it('renders three bp inputs and saves them as an object', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'ВД / НД / П', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }],
+    };
+    let saved: unknown;
+    render(<EntryForm fields={[bp]} onSave={v => { saved = v; }} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText(/^П/), { target: { value: '70' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+    expect(saved).toEqual({ bp1: { systolic: '120', diastolic: '80', pulse: '70' } });
   });
 });

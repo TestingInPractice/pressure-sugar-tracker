@@ -11,7 +11,6 @@ import { saveSyncFile } from '../logic/sync-file';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
-import FieldsEditor from './FieldsEditor';
 import ReminderPanel from './ReminderPanel';
 
 interface Props { reportId: string; onBack: () => void }
@@ -21,7 +20,6 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -43,7 +41,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
   const setRangePart = (part: 'from' | 'to', value: string) =>
     setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
 
-  const saveEntry = async (values: Record<string, string | number>) => {
+  const saveEntry = async (values: Entry['values']) => {
     const vals = { ...values };
     const nid = numberingFieldId(report.fields);
     if (!editingEntry && nid !== undefined) {
@@ -143,18 +141,7 @@ export default function ReportScreen({ reportId, onBack }: Props) {
                   onClick={() => { setNameDraft(report.name); setRenaming(true); }}>✎</button>
         </div>
       )}
-      {showEditor ? (
-        <FieldsEditor
-          report={report}
-          onSaved={r => {
-            setReport(r);
-            setShowEditor(false);
-            void listEntries(reportId).then(setEntries);
-          }}
-        />
-      ) : (
-        <>
-          <button className="no-print" onClick={() => setShowEditor(true)}>Настроить поля</button>
+      <>
           <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
           <button className="no-print btn-danger" onClick={() => void removeReport()}>Удалить отчёт</button>
           <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
@@ -205,7 +192,6 @@ export default function ReportScreen({ reportId, onBack }: Props) {
             onDelete={e => void removeEntry(e)}
           />
         </>
-      )}
     </div>
   );
 }

@@ -28,4 +28,20 @@ describe('validateEntry', () => {
     expect(validateEntry([f({ required: true, type: 'datetime' })], { f1: '' }).f1).toBeTruthy();
     expect(validateEntry([f({ required: true, type: 'datetime' })], { f1: '2026-08-23T09:00' })).toEqual({});
   });
+  it('bp: optional and empty is ok', () => {
+    const bp = f({ type: 'bp', parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }] });
+    expect(validateEntry([bp], {})).toEqual({});
+  });
+  it('bp: required flags empty', () => {
+    const bp = f({ required: true, type: 'bp', parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }] });
+    expect(validateEntry([bp], { f1: {} }).f1).toBeTruthy();
+  });
+  it('bp: flags non-numeric part value', () => {
+    const bp = f({ type: 'bp', parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }] });
+    expect(validateEntry([bp], { f1: { systolic: 120, diastolic: 'abc' } }).f1).toBeTruthy();
+  });
+  it('bp: accepts numeric parts', () => {
+    const bp = f({ type: 'bp', parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }] });
+    expect(validateEntry([bp], { f1: { systolic: '120', diastolic: '80', pulse: 70 } })).toEqual({});
+  });
 });

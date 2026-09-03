@@ -57,6 +57,22 @@ describe('EntriesTable + EntryForm', () => {
     expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
   });
 
+  it('renders bp values as sys/dia pulse in one cell', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'ВД / НД / П', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }],
+    };
+    render(
+      <EntriesTable
+        report={{ fields: [bp] }}
+        entries={[{ id: 'e5', reportId: 'r', values: { bp1: { systolic: 120, diastolic: 80, pulse: 70 } }, createdAt: 8 }]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText('120/80 70')).toBeInTheDocument();
+  });
+
   it('form validates required fields before save', async () => {
     const saved: unknown[] = [];
     render(<EntryForm fields={fields} onSave={v => saved.push(v)} onCancel={() => {}} />);

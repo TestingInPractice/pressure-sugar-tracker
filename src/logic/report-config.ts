@@ -7,26 +7,43 @@ export function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${seq}`;
 }
 
+export const BP_PARTS = [
+  { id: 'systolic', label: 'ВД' },
+  { id: 'diastolic', label: 'НД' },
+  { id: 'pulse', label: 'П' },
+] as const;
+
 function mkField(name: string, type: Field['type'], unit?: string, required = false): Field {
   return { id: genId('fld'), name, type, unit, required, width: DEFAULT_FIELD_WIDTH };
+}
+
+export function mkBPField(name = 'ВД / НД / П'): Field {
+  return {
+    id: genId('fld'),
+    name,
+    type: 'bp',
+    required: false,
+    width: DEFAULT_FIELD_WIDTH,
+    parts: BP_PARTS.map(({ id, label }) => ({ id, label })),
+  };
 }
 
 export function makeDefaultFields(): Field[] {
   return [
     mkField('Номер', 'number'),
     mkField('Дата и время', 'datetime', undefined, true),
-    mkField('ВД / НД / П', 'text'),
+    mkBPField(),
     mkField('Сахар', 'number', 'ммоль/л'),
     mkField('Примечание', 'text'),
   ];
 }
 
-export function createDefaultReport(): Report {
+export function createDefaultReport(name = 'Новый отчёт', fields = makeDefaultFields()): Report {
   const now = Date.now();
   return {
     id: genId('rep'),
-    name: 'Новый отчёт',
-    fields: makeDefaultFields(),
+    name,
+    fields,
     archived: false,
     createdAt: now,
     updatedAt: now,

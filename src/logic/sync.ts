@@ -1,4 +1,5 @@
 import type { Report, Entry } from '../types';
+import type { BPValues } from '../types';
 
 const SUPPORTED_VERSION = 1;
 
@@ -7,11 +8,20 @@ export type SyncOutcome =
   | { kind: 'append-only'; added: Entry[] }
   | { kind: 'conflict'; added: Entry[]; modified: Entry[]; deleted: Entry[] };
 
-function sameValues(a: Record<string, string | number>, b: Record<string, string | number>): boolean {
+type Cell = string | number | BPValues;
+
+function cellsEqual(a: Cell, b: Cell): boolean {
+  if (typeof a === 'object' || typeof b === 'object') {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  }
+  return a === b;
+}
+
+function sameValues(a: Record<string, Cell>, b: Record<string, Cell>): boolean {
   const ka = Object.keys(a);
   const kb = Object.keys(b);
   if (ka.length !== kb.length) return false;
-  return ka.every(k => a[k] === b[k]);
+  return ka.every(k => cellsEqual(a[k], b[k]));
 }
 
 export function classifySync(current: Entry[], synced: Entry[] | undefined): SyncOutcome {

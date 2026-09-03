@@ -8,9 +8,10 @@ import { listEntries, putEntry, putReport } from '../db/db';
 interface Props {
   report: Report;
   onSaved: (r: Report) => void;
+  saveLabel?: string;
 }
 
-export default function FieldsEditor({ report, onSaved }: Props) {
+export default function FieldsEditor({ report, onSaved, saveLabel = 'Сохранить поля' }: Props) {
   const [fields, setFields] = useState<Field[]>(report.fields);
 
   const update = (id: string, patch: Partial<Field>) =>
@@ -102,7 +103,7 @@ export default function FieldsEditor({ report, onSaved }: Props) {
         + Поле
       </button>
       <button type="button" className="primary" onClick={save}>
-        Сохранить поля
+        {saveLabel}
       </button>
     </div>
   );

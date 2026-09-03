@@ -1,5 +1,5 @@
-import type { Report, Entry } from '../types';
-import { formatCell } from '../logic/format';
+import type { Report, Entry, BPValues } from '../types';
+import { formatCell, formatBP } from '../logic/format';
 import { numberingFieldId } from '../logic/entry-number';
 
 interface Props {
@@ -32,7 +32,9 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
           <tr key={e.id}>
             {report.fields.map(f => (
               <td key={f.id} className={f.id === numId ? 'col-number wrap-cell' : 'wrap-cell'}>
-                {formatCell(f, String(e.values[f.id] ?? ''))}
+                {f.type === 'bp'
+                  ? formatBP(e.values[f.id] as BPValues, f.parts)
+                  : formatCell(f, String(e.values[f.id] ?? ''))}
               </td>
             ))}
             <td className="actions-col">

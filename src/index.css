@@ -614,6 +614,36 @@ form textarea,
     box-shadow var(--speed) ease;
 }
 
+/* Композитное поле «Давление»: ВД / НД / П рядом */
+.bp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bp-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.bp-inputs {
+  display: flex;
+  gap: 8px;
+}
+.bp-part {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.bp-part input {
+  width: 100%;
+}
+
 form input:not([type='checkbox']):focus,
 form textarea:focus,
 .fields-editor input:focus,

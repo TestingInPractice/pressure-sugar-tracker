@@ -8,7 +8,8 @@ it('default template matches spec', () => {
   const dt = fields.find(f => f.type === 'datetime')!;
   expect(dt.required).toBe(true);
   const pressure = fields.find(f => f.name === 'ВД / НД / П')!;
-  expect(pressure.type).toBe('text');
+  expect(pressure.type).toBe('bp');
+  expect(pressure.parts?.map(p => p.label)).toEqual(['ВД', 'НД', 'П']);
 });
 
 it('creates draft report', () => {

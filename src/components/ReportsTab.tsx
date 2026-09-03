@@ -1,20 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Report } from '../types';
-import { listReports, putReport } from '../db/db';
-import { createDefaultReport } from '../logic/report-config';
+import { listReports } from '../db/db';
 
-interface Props { openReport: (id: string) => void }
+interface Props { openReport: (id: string) => void; onCreate: () => void }
 
-export default function ReportsTab({ openReport }: Props) {
+export default function ReportsTab({ openReport, onCreate }: Props) {
   const [reports, setReports] = useState<Report[]>([]);
 
   const reload = useCallback(async () => setReports(await listReports(false)), []);
   useEffect(() => { void reload(); }, [reload]);
-
-  const add = useCallback(async () => {
-    await putReport(createDefaultReport());
-    await reload();
-  }, [reload]);
 
   return (
     <div className="reports-tab">
@@ -26,7 +20,7 @@ export default function ReportsTab({ openReport }: Props) {
         ))}
         {reports.length === 0 && <li className="empty">Пока нет отчётов</li>}
       </ul>
-      <button className="primary" onClick={() => void add()}>+ Добавить отчёт</button>
+      <button className="primary" onClick={onCreate}>+ Добавить отчёт</button>
     </div>
   );
 }

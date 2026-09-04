@@ -14,7 +14,7 @@ it('shows active reports and opens the creation wizard on add', async () => {
   expect(await screen.findByText('Активный')).toBeInTheDocument();
   expect(screen.queryByText('Архивный')).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: '+ Добавить отчёт' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Новый отчёт' }));
   expect(onCreate).toHaveBeenCalledTimes(1);
   expect(await db.reports.count()).toBe(2); // wizard itself does not persist
 });

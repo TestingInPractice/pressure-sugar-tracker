@@ -20,7 +20,7 @@ export default function ReportsTab({ openReport, onCreate }: Props) {
         ))}
         {reports.length === 0 && <li className="empty">Пока нет отчётов</li>}
       </ul>
-      <button className="primary" onClick={onCreate}>+ Добавить отчёт</button>
+      <button className="primary" onClick={onCreate}>Новый отчёт</button>
     </div>
   );
 }

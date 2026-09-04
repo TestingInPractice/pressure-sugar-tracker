@@ -21,6 +21,8 @@ export interface Field {
   width: number;
   /** Только для type === 'bp': подполя ВД/НД/П. */
   parts?: FieldPart[];
+  /** Скрыто из формы, таблицы и графиков (данные сохраняются). */
+  hidden?: boolean;
 }
 
 export interface Reminder {
@@ -43,8 +45,17 @@ export interface Report {
   archived: boolean;
   reminder?: Reminder;
   reminderState?: ReminderState;
+  /** Личные нормы пользователя для линий на графике. */
+  targets?: ReportTargets;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface ReportTargets {
+  sys?: number;
+  dia?: number;
+  pulse?: number;
+  sugar?: number;
 }
 
 export interface Entry {

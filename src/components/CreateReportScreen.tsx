@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { Report } from '../types';
 import { createDefaultReport } from '../logic/report-config';
-import FieldsEditor from './FieldsEditor';
 
 interface Props {
   onCreate: (r: Report) => void;
@@ -9,7 +8,6 @@ interface Props {
 }
 
 export default function CreateReportScreen({ onCreate, onCancel }: Props) {
-  const [draft] = useState(() => createDefaultReport());
   const [name, setName] = useState('Новый отчёт');
 
   return (
@@ -21,11 +19,14 @@ export default function CreateReportScreen({ onCreate, onCancel }: Props) {
         <input aria-label="Название отчёта" value={name} autoFocus
                onChange={e => setName(e.target.value)} />
       </label>
-      <FieldsEditor
-        report={draft}
-        saveLabel="Создать отчёт"
-        onSaved={r => onCreate({ ...r, name: name.trim() || 'Новый отчёт' })}
-      />
+      <p className="hint no-print">
+        Поля стандартные: номер, дата и время, давление, сахар, примечание.
+        Ненужные можно скрыть внутри отчёта.
+      </p>
+      <button type="button" className="no-print primary create-btn"
+              onClick={() => onCreate(createDefaultReport(name.trim() || 'Новый отчёт'))}>
+        Создать отчёт
+      </button>
     </div>
   );
 }

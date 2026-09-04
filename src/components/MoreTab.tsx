@@ -18,6 +18,7 @@ export default function MoreTab({ onDataChanged }: Props) {
     a.download = backupFilename();
     a.click();
     URL.revokeObjectURL(url);
+    localStorage.setItem('last-backup-at', new Date().toISOString());
   };
 
   const importBackup = async (file: File) => {

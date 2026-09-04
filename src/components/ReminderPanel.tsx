@@ -6,9 +6,9 @@ import { normalizeReminder, onReconfigured } from '../logic/reminders';
 import { buildShortcutUrls } from '../logic/shortcuts';
 import ShortcutHelp from './ShortcutHelp';
 
-interface Props { report: Report; masterOn: boolean; onChanged: () => void }
+interface Props { report: Report; masterOn: boolean; onChanged: () => void; onEnableMaster?: () => void }
 
-export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
+export default function ReminderPanel({ report, masterOn, onChanged, onEnableMaster }: Props) {
   const initial = normalizeReminder(report.reminder);
   const enabled = report.reminder?.enabled ?? false;
   const [times, setTimes] = useState<string[]>(initial && initial.enabled ? initial.times : []);
@@ -55,6 +55,12 @@ export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
     });
   };
 
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch { /* окружение без Notification API */ }
+    }
+  };
+
   const downloadIcs = () => {
     if (validTimes.length === 0) return;
     const day = new Date().toISOString().slice(0, 10);
@@ -69,12 +75,31 @@ export default function ReminderPanel({ report, masterOn, onChanged }: Props) {
 
   return (
     <section className="reminder-panel no-print">
-      {!masterOn && <p className="hint">Рубильник напоминаний выключен — напоминания молчат.</p>}
+      {!masterOn && (
+        <div className="master-gate-warning">
+          <p>Рубильник напоминаний выключен — напоминания не будут срабатывать.</p>
+          {onEnableMaster && (
+            <button type="button" className="primary" onClick={onEnableMaster}>
+              Включить напоминания
+            </button>
+          )}
+        </div>
+      )}
       <label>
         <input type="checkbox" checked={enabled}
                onChange={e => void persist(e.target.checked, times)} />
         Напоминание о заполнении
       </label>
+      {enabled && 'Notification' in window && Notification.permission === 'default' && (
+        <p className="hint">
+          Разрешите уведомления, чтобы напоминания срабатывали автоматически.
+        </p>
+      )}
+      {enabled && 'Notification' in window && Notification.permission === 'default' && (
+        <button type="button" onClick={() => void requestNotificationPermission()}>
+          Разрешить уведомления
+        </button>
+      )}
       <div className="reminder-times">
         {times.map((t, i) => (
           <div className="reminder-time-row" key={i}>

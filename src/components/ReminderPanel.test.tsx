@@ -13,6 +13,42 @@ const baseReport = (reminder?: { enabled: boolean; times: string[] }): Report =>
   ...(reminder ? { reminder } : {}),
 });
 
+it('shows inline master-gate warning when master is OFF', () => {
+  render(
+    <ReminderPanel
+      report={baseReport({ enabled: true, times: ['08:00'] })}
+      masterOn={false}
+      onChanged={() => {}}
+    />,
+  );
+  expect(screen.getByText(/Рубильник напоминаний выключен/)).toBeInTheDocument();
+});
+
+it('calls onEnableMaster when gate warning button is clicked', () => {
+  const onEnable = vi.fn();
+  render(
+    <ReminderPanel
+      report={baseReport({ enabled: true, times: ['08:00'] })}
+      masterOn={false}
+      onChanged={() => {}}
+      onEnableMaster={onEnable}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Включить напоминания/ }));
+  expect(onEnable).toHaveBeenCalledTimes(1);
+});
+
+it('does not show gate warning when master is ON', () => {
+  render(
+    <ReminderPanel
+      report={baseReport({ enabled: true, times: ['08:00'] })}
+      masterOn={true}
+      onChanged={() => {}}
+    />,
+  );
+  expect(screen.queryByText(/Рубильник напоминаний выключен/)).not.toBeInTheDocument();
+});
+
 it('opens a Shortcuts bridge link for each configured time', () => {
   const hrefs: string[] = [];
   const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (

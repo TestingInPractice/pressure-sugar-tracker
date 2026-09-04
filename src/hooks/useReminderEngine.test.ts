@@ -18,8 +18,10 @@ const report: Report = {
 it('fires due reminder, persists state, reports title', async () => {
   await putReport(report);
   const notify = vi.fn();
-  const titles = await runEngineTick(T0, notify);
-  expect(titles).toContain('Давление');
+  const items = await runEngineTick(T0, notify);
+  expect(items).toHaveLength(1);
+  expect(items[0].title).toBe('Давление');
+  expect(items[0].reportId).toBe('r1');
   expect(notify).toHaveBeenCalledWith('Давление');
   const saved = (await db.reports.get('r1'))!;
   expect(saved.reminderState?.day).toBe('2026-08-23');
@@ -28,13 +30,13 @@ it('fires due reminder, persists state, reports title', async () => {
 
 it('respects master switch', async () => {
   await putReport(report);
-  const titles = await runEngineTick(T0, vi.fn(), { masterOn: false });
-  expect(titles).toEqual([]);
+  const items = await runEngineTick(T0, vi.fn(), { masterOn: false });
+  expect(items).toEqual([]);
 });
 
 it('does not refire the same time within the day', async () => {
   await putReport(report);
   await runEngineTick(T0, vi.fn());
-  const titles = await runEngineTick(T0 + 5 * 60_000, vi.fn());
-  expect(titles).toEqual([]);
+  const items = await runEngineTick(T0 + 5 * 60_000, vi.fn());
+  expect(items).toEqual([]);
 });

@@ -198,8 +198,11 @@ html, body {
   }
   .app-switches {
     flex-direction: row;
-    gap: 12px;
-    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 12px;
+    flex: 0 1 auto;
+    max-width: 100%;
     align-items: center;
   }
 }
@@ -1766,7 +1769,7 @@ p.error {
   .entries-scroll { overflow: visible; border: none; border-radius: 0; box-shadow: none; background: none; }
   .entries-table th { background: none; }
   .entries-table tbody tr:nth-child(even), .entries-table tbody tr:hover { background: none; }
-  .print-table { display: block; }
+  .print-table { display: block !important; }
   .print-charts { display: block !important; margin-bottom: 12pt; }
   .print-chart { page-break-inside: avoid; margin-bottom: 10pt; }
   .print-chart__title { font-size: 12pt; font-weight: 700; margin-bottom: 4pt; }

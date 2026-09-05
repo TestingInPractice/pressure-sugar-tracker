@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import TrendChart, {
-  bucketPoints, autoBucket, buildChartPoints, takeLast,
+  bucketPoints, autoBucket, buildChartPoints, takeLast, MAX_UNBUCKETED_POINTS,
   buildPressureSeries, buildPulseSeries, findBPField, findSugarField, findPulseField,
 } from './TrendChart';
 import type { Field, Entry, BPValues } from '../types';
@@ -129,7 +129,7 @@ describe('TrendChart component', () => {
     expect(container.querySelector('[data-target="t"]')?.getAttribute('stroke')).toBe('#f97316');
   });
 
-  it('renders two series with dashed hollow markers', () => {
+  it('renders two series with hollow markers as outlined circles', () => {
     const entries: Entry[] = [
       { id: 'e1', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 }, d1: '2026-08-20T10:00' }, createdAt: 1 },
       { id: 'e2', reportId: 'r1', values: { bp1: { systolic: 130, diastolic: 85 }, d1: '2026-08-21T10:00' }, createdAt: 2 },
@@ -146,10 +146,28 @@ describe('TrendChart component', () => {
     const paths = container.querySelectorAll('path');
     expect(paths.length).toBe(2);
     expect(paths[1].getAttribute('stroke-dasharray')).toBe('5,3');
-    const hollow = container.querySelectorAll('circle[stroke-dasharray]');
+    const hollow = container.querySelectorAll('circle[stroke-width="3"]');
     expect(hollow.length).toBe(2);
     expect(screen.getByText('Верхнее')).toBeInTheDocument();
     expect(screen.getByText('Нижнее')).toBeInTheDocument();
+  });
+
+  it('printMode uses explicit hex colors without var() in SVG attributes', () => {
+    const entries: Entry[] = [
+      { id: 'e1', reportId: 'r1', values: { s1: 5.0, d1: '2026-08-20T10:00' }, createdAt: 1 },
+      { id: 'e2', reportId: 'r1', values: { s1: 6.5, d1: '2026-08-21T10:00' }, createdAt: 2 },
+    ];
+    const { container } = render(<TrendChart entries={entries} fields={[sugarField, dtField]} printMode />);
+    const circles = Array.from(container.querySelectorAll('circle'));
+    expect(circles.length).toBeGreaterThan(0);
+    for (const c of circles) {
+      expect(c.getAttribute('fill')).not.toMatch(/^var\(/);
+      expect(c.getAttribute('stroke')).not.toMatch(/^var\(/);
+    }
+    const path = container.querySelector('path');
+    expect(path?.getAttribute('stroke')).toBe('#0e7490');
+    const svgTexts = Array.from(container.querySelectorAll('text')).map(t => t.getAttribute('fill'));
+    expect(svgTexts.every(f => f && !f.startsWith('var('))).toBe(true);
   });
 });
 
@@ -210,6 +228,36 @@ describe('metric builders', () => {
       <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: takeLast(sys, 10) }]} noBucket />
     );
     expect(container.querySelectorAll('circle')).toHaveLength(3);
+  });
+
+  it('keeps a measurement per point for small series (no bucketing below threshold)', () => {
+    const entries: Entry[] = Array.from({ length: 9 }, (_, i) => ({
+      id: `e${i}`, reportId: 'r1',
+      values: { bp1: { systolic: 120 + i, diastolic: 80 }, d1: `2026-08-2${i % 3}T1${i}:00` },
+      createdAt: i,
+    }));
+    const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
+    expect(sys).toHaveLength(9);
+    const { container } = render(
+      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} />
+    );
+    expect(container.querySelectorAll('circle')).toHaveLength(9);
+  });
+
+  it('buckets long series above threshold', () => {
+    const n = MAX_UNBUCKETED_POINTS + 7;
+    const entries: Entry[] = Array.from({ length: n }, (_, i) => ({
+      id: `e${i}`, reportId: 'r1',
+      values: { bp1: { systolic: 120 + (i % 5), diastolic: 80 }, d1: `2026-0${1 + Math.floor(i / 30)}-${String((i % 28) + 1).padStart(2, '0')}T10:00` },
+      createdAt: i,
+    }));
+    const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
+    expect(sys).toHaveLength(n);
+    const { container } = render(
+      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} />
+    );
+    const circles = container.querySelectorAll('circle');
+    expect(circles.length).toBeLessThan(n);
   });
 
   it('renders no date labels and spaces points evenly', () => {

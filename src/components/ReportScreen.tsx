@@ -12,6 +12,8 @@ import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
 import ReminderPanel from './ReminderPanel';
+import TrendChart, { metricAvailable, buildMetricSeries, buildMetricTargets } from './TrendChart';
+import type { MetricId } from './TrendChart';
 
 interface Props { reportId: string; onBack: () => void; autoOpenEntry?: boolean; onEntryFormOpened?: () => void }
 
@@ -28,6 +30,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const [nameDraft, setNameDraft] = useState('');
   const [showRange, setShowRange] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  const [printCharts, setPrintCharts] = useState({ bp: true, pulse: true, sugar: true, norms: true });
   const [syncMsg, setSyncMsg] = useState('');
   const [autoSyncHint, setAutoSyncHint] = useState('');
   const [syncInfo, setSyncInfo] = useState<{ fileName: string; syncedAt: number; count: number } | null>(null);
@@ -84,6 +87,17 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const dtFieldId = datetimeFieldId(report.fields);
   const numId = numberingFieldId(report.fields);
   const visibleEntries = filterByRange(entries, dtFieldId, range);
+
+  const PRINT_METRICS: { id: MetricId; label: string }[] = [
+    { id: 'bp', label: 'График: давление' },
+    { id: 'pulse', label: 'График: пульс' },
+    { id: 'sugar', label: 'График: сахар' },
+  ];
+  const printSeries = PRINT_METRICS.flatMap(m =>
+    printCharts[m.id] && metricAvailable(report.fields, m.id)
+      ? [{ metric: m.id, label: m.label, series: buildMetricSeries(visibleEntries, report.fields, m.id) }]
+      : [],
+  ).filter(g => g.series.some(s => s.points.length > 0));
   const setRangePart = (part: 'from' | 'to', value: string) =>
     setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
 
@@ -265,6 +279,44 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
               <button className="no-print" onClick={() => void syncReport()}>Синхронизация</button>
               <button className="no-print btn-danger" onClick={() => void removeReport()}>Удалить отчёт</button>
             </div>
+            <div className="overflow-items overflow-items--nested">
+              <details className="fields-visibility">
+                <summary>Поля отчёта</summary>
+                {report.fields.map(f => {
+                  const locked = f.id === numId || f.id === dtFieldId;
+                  return (
+                    <label key={f.id}>
+                      <input type="checkbox" checked={!f.hidden} disabled={locked}
+                             onChange={() => void toggleFieldHidden(f.id)} />
+                      {f.name}{locked ? ' (всегда)' : ''}
+                    </label>
+                  );
+                })}
+              </details>
+              <details className="fields-visibility">
+                <summary>Мои нормы</summary>
+                {targetsDraft ? (
+                  <>
+                    {(Object.keys(TARGET_LABELS) as TargetKey[]).map(k => (
+                      <label key={k}>
+                        {TARGET_LABELS[k]}
+                        <input inputMode="decimal" aria-label={TARGET_LABELS[k]} value={targetsDraft[k]}
+                               onChange={e => setTargetsDraft({ ...targetsDraft, [k]: e.target.value })} />
+                      </label>
+                    ))}
+                    <div className="btn-row">
+                      <button type="button" className="primary" onClick={() => void saveTargets()}>Сохранить</button>
+                      <button type="button" onClick={() => setTargetsDraft(null)}>Отмена</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="hint">{targetsSummary()}</p>
+                    <button type="button" onClick={openTargets}>Изменить</button>
+                  </>
+                )}
+              </details>
+            </div>
           </details>
           {syncInfo && (
             <p className="hint no-print">
@@ -272,42 +324,6 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
             </p>
           )}
           {syncMsg && <p className="hint no-print">{syncMsg}</p>}
-          <details className="no-print fields-visibility">
-            <summary>Поля отчёта</summary>
-            {report.fields.map(f => {
-              const locked = f.id === numId || f.id === dtFieldId;
-              return (
-                <label key={f.id}>
-                  <input type="checkbox" checked={!f.hidden} disabled={locked}
-                         onChange={() => void toggleFieldHidden(f.id)} />
-                  {f.name}{locked ? ' (всегда)' : ''}
-                </label>
-              );
-            })}
-          </details>
-          <details className="no-print fields-visibility">
-            <summary>Мои нормы</summary>
-            {targetsDraft ? (
-              <>
-                {(Object.keys(TARGET_LABELS) as TargetKey[]).map(k => (
-                  <label key={k}>
-                    {TARGET_LABELS[k]}
-                    <input inputMode="decimal" aria-label={TARGET_LABELS[k]} value={targetsDraft[k]}
-                           onChange={e => setTargetsDraft({ ...targetsDraft, [k]: e.target.value })} />
-                  </label>
-                ))}
-                <div className="btn-row">
-                  <button type="button" className="primary" onClick={() => void saveTargets()}>Сохранить</button>
-                  <button type="button" onClick={() => setTargetsDraft(null)}>Отмена</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="hint">{targetsSummary()}</p>
-                <button type="button" onClick={openTargets}>Изменить</button>
-              </>
-            )}
-          </details>
           {autoSyncHint && <p className="hint no-print">{autoSyncHint}</p>}
           {showRange && (
             <form className="print-range no-print"
@@ -318,6 +334,19 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
                 <input type="date" aria-label="По" value={range?.to ?? ''}
                        onChange={e => setRangePart('to', e.target.value)} />
               </div>
+              {PRINT_METRICS.map(m => (
+                <label key={m.id} className="print-opt">
+                  <input type="checkbox" checked={printCharts[m.id]}
+                         disabled={!metricAvailable(report.fields, m.id)}
+                         onChange={() => setPrintCharts(prev => ({ ...prev, [m.id]: !prev[m.id] }))} />
+                  {m.label}
+                </label>
+              ))}
+              <label className="print-opt">
+                <input type="checkbox" checked={printCharts.norms}
+                       onChange={() => setPrintCharts(prev => ({ ...prev, norms: !prev.norms }))} />
+                Норма на графиках
+              </label>
               <div className="btn-row">
                 <button type="submit" className="primary">Печать</button>
                 <button type="button" onClick={() => setRange(null)}>Сбросить</button>
@@ -355,6 +384,21 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
             onEdit={e => { setEditingEntry(e); setShowForm(true); }}
             onDelete={e => void removeEntry(e)}
           />
+          {printSeries.length > 0 && (
+            <div className="print-charts" aria-hidden="true">
+              {printSeries.map(g => (
+                <div key={g.metric} className="print-chart">
+                  <div className="print-chart__title">{g.label.replace('График: ', '')}</div>
+                  <TrendChart
+                    series={g.series}
+                    targetLines={printCharts.norms ? buildMetricTargets(report.targets, g.metric) : []}
+                    height={150} width={520}
+                    printMode
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Entry, Field, BPValues } from '../types';
+import type { Entry, Field, BPValues, ReportTargets } from '../types';
 import { datetimeFieldId } from '../logic/print-filter';
 import { classifyBP, classifySugar, isBPFieldName, isSugarField } from '../logic/classification';
 import type { StatusColor } from '../logic/classification';
@@ -37,6 +37,9 @@ export type BucketMode = 'day' | 'week';
 const CHART_W = 340;
 const CHART_H = 140;
 const PAD = { top: 10, right: 10, bottom: 24, left: 36 };
+
+/** При таком количестве точек (и меньше) агрегация не нужна — каждая точка = измерение. */
+export const MAX_UNBUCKETED_POINTS = 60;
 
 /** Группирует точки по дате (день или неделя) и усредняет. */
 export function bucketPoints(
@@ -84,6 +87,57 @@ function worstOf(colors: StatusColor[]): StatusColor {
 /** Последние n точек (самые свежие по дате), порядок — по возрастанию даты. */
 export function takeLast(points: ChartPoint[], n: number): ChartPoint[] {
   return [...points].sort((a, b) => b.date - a.date).slice(0, n).sort((a, b) => a.date - b.date);
+}
+
+export type MetricId = 'bp' | 'pulse' | 'sugar';
+
+export function metricAvailable(fields: Field[], metric: MetricId): boolean {
+  if (metric === 'bp') return !!findBPField(fields);
+  if (metric === 'pulse') return !!(findBPField(fields) || findPulseField(fields));
+  return !!findSugarField(fields);
+}
+
+/** Полные (неурезанные) серии метрики для графика. */
+export function buildMetricSeries(entries: Entry[], fields: Field[], metric: MetricId): ChartSeries[] {
+  const dt = datetimeFieldId(fields);
+  if (metric === 'bp') {
+    const bp = findBPField(fields);
+    if (!bp) return [];
+    const { sys, dia } = buildPressureSeries(entries, bp.id, dt);
+    return [
+      { id: 'sys', label: 'Верхнее', points: sys },
+      { id: 'dia', label: 'Нижнее', points: dia, dashed: true, hollow: true },
+    ];
+  }
+  if (metric === 'pulse') {
+    const bp = findBPField(fields);
+    const standalone = findPulseField(fields);
+    if (!bp && !standalone) return [];
+    const pts = bp
+      ? buildPulseSeries(entries, bp.id, dt, true)
+      : buildPulseSeries(entries, standalone!.id, dt, false);
+    return [{ id: 'pulse', label: 'Пульс', points: pts }];
+  }
+  const sugar = findSugarField(fields);
+  if (!sugar) return [];
+  return [{ id: 'sugar', label: 'Сахар', points: buildChartPoints(entries, sugar.id, sugar, dt) }];
+}
+
+export function buildMetricTargets(targets: ReportTargets | undefined, metric: MetricId): TargetLine[] {
+  if (!targets) return [];
+  if (metric === 'bp') {
+    const lines: TargetLine[] = [];
+    if (targets.sys !== undefined) lines.push({ id: 't-sys', label: 'Норма ВД', value: targets.sys, dashed: false });
+    if (targets.dia !== undefined) lines.push({ id: 't-dia', label: 'Норма НД', value: targets.dia });
+    return lines;
+  }
+  if (metric === 'pulse' && targets.pulse !== undefined) {
+    return [{ id: 't-pulse', label: 'Норма пульса', value: targets.pulse, dashed: false }];
+  }
+  if (metric === 'sugar' && targets.sugar !== undefined) {
+    return [{ id: 't-sugar', label: 'Норма сахара', value: targets.sugar, dashed: false }];
+  }
+  return [];
 }
 
 /** Определяем bucket mode по диапазону дат. */
@@ -214,9 +268,12 @@ interface Props {
   series?: ChartSeries[];
   targetLines?: TargetLine[];
   noBucket?: boolean;
+  pointWidth?: number;
   targetRange?: { low: number; high: number };
   height?: number;
   width?: number;
+  /** Печатать на бумаге: hex-цвета вместо var() (Chrome не резолвит их в SVG при экспорте в PDF). */
+  printMode?: boolean;
 }
 
 const COLOR_MAP: Record<ChartPointColor, string> = {
@@ -224,6 +281,13 @@ const COLOR_MAP: Record<ChartPointColor, string> = {
   yellow: '#e6a817',
   red: 'var(--danger)',
   accent: 'var(--accent)',
+};
+
+const PRINT_COLOR_MAP: Record<ChartPointColor, string> = {
+  green: '#12855f',
+  yellow: '#e6a817',
+  red: '#d92d20',
+  accent: '#0e7490',
 };
 
 /**
@@ -237,11 +301,19 @@ export default function TrendChart({
   series: seriesProp,
   targetLines = [],
   noBucket = false,
+  pointWidth,
   targetRange,
   height = CHART_H,
   width = CHART_W,
+  printMode = false,
 }: Props) {
   const dtFieldId = datetimeFieldId(fields);
+  const surfaceCol = printMode ? '#ffffff' : 'var(--surface)';
+  const accentCol = printMode ? '#0e7490' : 'var(--accent)';
+  const accentSoftCol = printMode ? 'rgba(14, 116, 144, 0.09)' : 'var(--accent-soft)';
+  const borderCol = printMode ? '#dde5ec' : 'var(--border)';
+  const textMutedCol = printMode ? '#5c6f81' : 'var(--text-muted)';
+  const pointCol = (c: ChartPointColor) => (printMode ? PRINT_COLOR_MAP[c] : COLOR_MAP[c]);
 
   // Find the first BP or sugar field to chart
   const chartField = useMemo(() => {
@@ -264,18 +336,27 @@ export default function TrendChart({
   );
 
   const cooked: ChartSeries[] = useMemo(
-    () => rawSeries.map(s => ({ ...s, points: noBucket ? s.points : bucketPoints(s.points, bucket) })),
+    () => rawSeries.map(s => ({
+      ...s,
+      points: noBucket || s.points.length <= MAX_UNBUCKETED_POINTS
+        ? s.points
+        : bucketPoints(s.points, bucket),
+    })),
     [rawSeries, bucket, noBucket],
   );
   const visible = useMemo(() => cooked.filter(s => s.points.length > 0), [cooked]);
   const maxLen = useMemo(() => Math.max(0, ...visible.map(s => s.points.length)), [visible]);
+  const svgWidth = useMemo(() => {
+    if (!pointWidth || maxLen === 0) return width;
+    return Math.max(width, PAD.left + PAD.right + maxLen * pointWidth);
+  }, [pointWidth, maxLen, width]);
 
   const inner = useMemo(() => ({
     x: PAD.left,
     y: PAD.top,
-    w: width - PAD.left - PAD.right,
+    w: svgWidth - PAD.left - PAD.right,
     h: height - PAD.top - PAD.bottom,
-  }), [width, height]);
+  }), [svgWidth, height]);
 
   const { yMin, yMax } = useMemo(() => {
     const all = visible.flatMap(s => s.points);
@@ -344,7 +425,7 @@ export default function TrendChart({
     return (
       <div className="trend-chart trend-chart--empty">
         <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Нет данных для графика">
-          <text x={width / 2} y={height / 2} textAnchor="middle" fill="var(--text-muted)" fontSize="13" dominantBaseline="middle">
+          <text x={width / 2} y={height / 2} textAnchor="middle" fill={textMutedCol} fontSize="13" dominantBaseline="middle">
             Нет данных для графика
           </text>
         </svg>
@@ -371,11 +452,12 @@ export default function TrendChart({
           ))}
         </div>
       )}
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="График показателей">
+      <div className="trend-chart__scroll">
+      <svg viewBox={`0 0 ${svgWidth} ${height}`} width="100%" style={{ minWidth: svgWidth }} role="img" aria-label="График показателей">
         {/* Target range band */}
         {bandRect && (
           <rect x={bandRect.x} y={bandRect.y} width={bandRect.width} height={bandRect.height}
-                fill="var(--accent-soft)" rx="2" />
+                fill={accentSoftCol} rx="2" />
         )}
         {/* Target lines */}
         {targetLines.map(l => (
@@ -388,27 +470,27 @@ export default function TrendChart({
         {yTicks.map(v => (
           <g key={v}>
             <line x1={inner.x} y1={yScale(v)} x2={inner.x + inner.w} y2={yScale(v)}
-                  stroke="var(--border)" strokeWidth="0.5" strokeDasharray="4,3" />
+                  stroke={borderCol} strokeWidth="0.5" strokeDasharray="4,3" />
             <text x={inner.x - 4} y={yScale(v)} textAnchor="end" dominantBaseline="middle"
-                  fill="var(--text-muted)" fontSize="10">
+                  fill={textMutedCol} fontSize="10">
               {v}
             </text>
           </g>
         ))}
         {/* Lines */}
         {linePaths.map(l => (
-          <path key={l.id} d={l.d} fill="none" stroke="var(--accent)" strokeWidth="2"
+          <path key={l.id} d={l.d} fill="none" stroke={accentCol} strokeWidth="2"
                 strokeLinejoin="round" strokeDasharray={l.dashed ? '5,3' : undefined} />
         ))}
         {/* Points */}
         {visible.map(s => s.points.map((p, i) => (
-          <circle key={`${s.id}-${i}`} cx={xPos(i)} cy={yScale(p.value)} r="4"
-                  fill={s.hollow ? 'var(--surface)' : COLOR_MAP[p.color]}
-                  stroke={s.hollow ? COLOR_MAP[p.color] : 'var(--surface)'}
-                  strokeWidth={s.hollow ? 2 : 1.5}
-                  strokeDasharray={s.hollow ? '3,2' : undefined} />
+          <circle key={`${s.id}-${i}`} cx={xPos(i)} cy={yScale(p.value)} r="6"
+                  fill={s.hollow ? surfaceCol : pointCol(p.color)}
+                  stroke={s.hollow ? pointCol(p.color) : surfaceCol}
+                  strokeWidth={s.hollow ? 3 : 2} />
         )))}
       </svg>
+      </div>
     </div>
   );
 }

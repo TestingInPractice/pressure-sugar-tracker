@@ -87,11 +87,11 @@ const seedChartReports = async () => {
   await putEntry({ id: 'e3', reportId: 'r2', values: { s1: 5.5, d1: '2026-08-20T10:00' }, createdAt: 3 });
 };
 
-const dashChartCircles = (dashed: boolean) =>
+const dashChartCircles = (hollow: boolean) =>
   Array.from(document.querySelectorAll('.dash-chart circle'))
-    .filter(c => (c.getAttribute('stroke-dasharray') !== null) === dashed);
+    .filter(c => (c.getAttribute('stroke-width') === '3') === hollow);
 
-it('chart defaults to pressure with solid sys and dashed dia lines', async () => {
+it('chart defaults to pressure with solid sys and outlined hollow dia points', async () => {
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
   await screen.findByText('Верхнее');
@@ -128,6 +128,26 @@ it('disables sugar metric when report has no sugar field', async () => {
   await screen.findByText('Верхнее');
   expect(screen.getByRole('button', { name: 'Сахар' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Пульс' })).not.toBeDisabled();
+});
+
+it('chart range Все shows all points scrollable', async () => {
+  await putReport({ id: 'r1', name: 'Давление', fields: [bpField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
+  for (let i = 0; i < 25; i++) {
+    const day = String(1 + Math.floor(i / 2)).padStart(2, '0');
+    await putEntry({
+      id: `e${i}`, reportId: 'r1',
+      values: { bp1: { systolic: 120 + i, diastolic: 80 }, d1: `2026-08-${day}T10:00` },
+      createdAt: i,
+    });
+  }
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText('Верхнее');
+  expect(document.querySelectorAll('.dash-chart circle')).toHaveLength(20);
+  fireEvent.click(screen.getByRole('button', { name: 'Все' }));
+  await screen.findByText('Верхнее');
+  expect(document.querySelectorAll('.dash-chart circle')).toHaveLength(50);
+  const svg = document.querySelector('.dash-chart .trend-chart__scroll svg');
+  expect(Number(svg?.getAttribute('viewBox')?.split(' ')[2])).toBeGreaterThan(340);
 });
 
 it('chart shows last 10 same-day readings as separate points', async () => {

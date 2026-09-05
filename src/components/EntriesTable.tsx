@@ -91,8 +91,46 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
     return () => { el.removeEventListener('scroll', checkOverflow); ro.disconnect(); };
   }, [checkOverflow, entries]);
 
+  const table = (
+    <table className="entries-table">
+    <thead>
+      <tr>
+        {fields.map(f => (
+          <th key={f.id} className={f.id === numId ? 'col-number' : undefined}
+              style={{ width: `${(Math.max(1, f.width ?? 1) / total) * 100}%` }}>
+            {f.name}{f.unit ? `, ${f.unit}` : ''}
+            {f.required ? ' *' : ''}
+          </th>
+        ))}
+        <th className="actions-col" />
+      </tr>
+    </thead>
+    <tbody>
+      {entries.map(e => (
+        <tr key={e.id}>
+          {fields.map(f => (
+            <td key={f.id} className={f.id === numId ? 'col-number wrap-cell' : 'wrap-cell'}>
+              {f.type === 'bp'
+                ? formatBP(e.values[f.id] as BPValues, f.parts)
+                : formatCell(f, String(e.values[f.id] ?? ''))}
+            </td>
+          ))}
+          <td className="actions-col">
+            <button onClick={() => onEdit(e)}>✎</button>
+            <button onClick={() => onDelete(e)}>🗑</button>
+          </td>
+        </tr>
+      ))}
+      {entries.length === 0 && (
+        <tr><td colSpan={fields.length + 1}>Нет записей</td></tr>
+      )}
+    </tbody>
+    </table>
+  );
+
   if (isMobile) {
     return (
+      <>
       <div className="entries-cards" role="list">
         {entries.map(e => {
           const status = classifyEntry(e, fields);
@@ -127,45 +165,14 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
           <div className="entry-card entry-card--empty">Нет записей</div>
         )}
       </div>
+      <div className="print-table" aria-hidden="true">{table}</div>
+      </>
     );
   }
 
   return (
     <div className="entries-scroll" ref={scrollRef}>
-      <table className="entries-table">
-      <thead>
-        <tr>
-          {fields.map(f => (
-            <th key={f.id} className={f.id === numId ? 'col-number' : undefined}
-                style={{ width: `${(Math.max(1, f.width ?? 1) / total) * 100}%` }}>
-              {f.name}{f.unit ? `, ${f.unit}` : ''}
-              {f.required ? ' *' : ''}
-            </th>
-          ))}
-          <th className="actions-col" />
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map(e => (
-          <tr key={e.id}>
-            {fields.map(f => (
-              <td key={f.id} className={f.id === numId ? 'col-number wrap-cell' : 'wrap-cell'}>
-                {f.type === 'bp'
-                  ? formatBP(e.values[f.id] as BPValues, f.parts)
-                  : formatCell(f, String(e.values[f.id] ?? ''))}
-              </td>
-            ))}
-            <td className="actions-col">
-              <button onClick={() => onEdit(e)}>✎</button>
-              <button onClick={() => onDelete(e)}>🗑</button>
-            </td>
-          </tr>
-        ))}
-        {entries.length === 0 && (
-          <tr><td colSpan={fields.length + 1}>Нет записей</td></tr>
-        )}
-      </tbody>
-      </table>
+      {table}
     </div>
   );
 }

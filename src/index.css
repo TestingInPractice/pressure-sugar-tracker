@@ -1365,6 +1365,15 @@ p.error {
   border-top-style: dashed;
 }
 
+.trend-chart__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trend-chart__scroll svg {
+  display: block;
+}
+
 .dash-chart__targets {
   display: flex;
   align-items: center;
@@ -1757,7 +1766,21 @@ p.error {
   .entries-scroll { overflow: visible; border: none; border-radius: 0; box-shadow: none; background: none; }
   .entries-table th { background: none; }
   .entries-table tbody tr:nth-child(even), .entries-table tbody tr:hover { background: none; }
+  .print-table { display: block; }
+  .print-charts { display: block !important; margin-bottom: 12pt; }
+  .print-chart { page-break-inside: avoid; margin-bottom: 10pt; }
+  .print-chart__title { font-size: 12pt; font-weight: 700; margin-bottom: 4pt; }
 }
 .print-title { display: none; }
+.print-charts { display: none; }
+.print-table { display: none; }
+
+.print-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+}
 
 

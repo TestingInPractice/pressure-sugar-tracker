@@ -403,6 +403,48 @@ it('hides sync file info when never synced', async () => {
   expect(screen.queryByText(/Файл: .*sync\.json/)).not.toBeInTheDocument();
 });
 
+const seedPrintable = async () => {
+  await putReport({
+    id: 'pp', name: 'Печать', archived: false, createdAt: 1, updatedAt: 1,
+    fields: [
+      { id: 'd', name: 'Дата и время', type: 'datetime', required: true, width: 30 },
+      { id: 'bp1', name: 'ВД / НД / П', type: 'bp', required: false, width: 30,
+        parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }] },
+      { id: 's1', name: 'Сахар', type: 'number', unit: 'ммоль/л', required: false, width: 30 },
+    ],
+    targets: { sys: 120, dia: 80 },
+  });
+  await putEntry({ id: 'e1', reportId: 'pp', values: { bp1: { systolic: 130, diastolic: 85 }, s1: 5.5, d: '2026-08-20T10:00' }, createdAt: 1 });
+};
+
+it('print dialog offers charts and norms, print block renders them', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  expect(screen.getByLabelText('График: давление')).toBeChecked();
+  expect(screen.getByLabelText('График: сахар')).toBeChecked();
+  expect(screen.getByLabelText('Норма на графиках')).toBeChecked();
+  await screen.findByText('130/85');
+  const block = document.querySelector('.print-charts');
+  expect(block).not.toBeNull();
+  expect(block!.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2);
+  expect(block!.querySelectorAll('[data-target]')).toHaveLength(2);
+});
+
+it('print chart toggles remove charts and norm lines', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  await screen.findByLabelText('График: давление');
+  await screen.findByText('130/85');
+  fireEvent.click(screen.getByLabelText('График: давление'));
+  fireEvent.click(screen.getByLabelText('Норма на графиках'));
+  const block = document.querySelector('.print-charts');
+  expect(block!.textContent).not.toMatch(/Верхнее/);
+  expect(block!.querySelectorAll('[data-target]')).toHaveLength(0);
+  expect(block!.querySelectorAll('svg').length).toBeGreaterThanOrEqual(1);
+});
+
 it('saves personal targets via Мои нормы', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);

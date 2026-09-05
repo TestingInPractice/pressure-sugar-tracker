@@ -7,10 +7,10 @@ import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
 import { nowLocalInput } from '../logic/reminders';
 import { onEntryRecorded } from '../logic/reminders';
 import TrendChart, {
-  buildPressureSeries, buildPulseSeries, buildChartPoints, takeLast,
-  findBPField, findSugarField, findPulseField,
+  takeLast, metricAvailable, buildMetricSeries, buildMetricTargets,
+  findBPField,
 } from './TrendChart';
-import type { ChartSeries, TargetLine } from './TrendChart';
+import type { ChartSeries, TargetLine, MetricId } from './TrendChart';
 import EntryForm from './EntryForm';
 import InstallHint from './InstallHint';
 
@@ -19,7 +19,7 @@ interface Props {
   onGoMore?: () => void;
 }
 
-type Metric = 'bp' | 'pulse' | 'sugar';
+type Metric = MetricId;
 
 const METRICS: { id: Metric; label: string }[] = [
   { id: 'bp', label: 'Давление' },
@@ -36,6 +36,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [chartReportId, setChartReportId] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>('bp');
+  const [chartRange, setChartRange] = useState<10 | 30 | 0>(10);
   const [chartEntries, setChartEntries] = useState<Entry[]>([]);
   const [showTargets, setShowTargets] = useState(() => localStorage.getItem('chart-show-targets') !== '0');
 
@@ -127,15 +128,11 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
   }, [quickAddReport, quickAddEntries]);
 
   const chartReport = reports.find(r => r.id === chartReportId) ?? null;
-  const chartBp = chartReport ? findBPField(chartReport.fields) : undefined;
-  const chartSugar = chartReport ? findSugarField(chartReport.fields) : undefined;
-  const chartPulseStandalone = chartReport ? findPulseField(chartReport.fields) : undefined;
-  const chartDt = chartReport ? datetimeFieldId(chartReport.fields) : undefined;
 
   const chartAvailable: Record<Metric, boolean> = {
-    bp: !!chartBp,
-    pulse: !!(chartBp || chartPulseStandalone),
-    sugar: !!chartSugar,
+    bp: chartReport ? metricAvailable(chartReport.fields, 'bp') : false,
+    pulse: chartReport ? metricAvailable(chartReport.fields, 'pulse') : false,
+    sugar: chartReport ? metricAvailable(chartReport.fields, 'sugar') : false,
   };
 
   let chartSeries: ChartSeries[] = [];
@@ -145,34 +142,16 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
   } else if (chartReport && !chartAvailable[metric]) {
     chartEmptyHint = `В отчёте нет данных «${METRICS.find(m => m.id === metric)?.label}»`;
   } else if (chartReport) {
-    if (metric === 'bp' && chartBp) {
-      const { sys, dia } = buildPressureSeries(chartEntries, chartBp.id, chartDt);
-      chartSeries = [
-        { id: 'sys', label: 'Верхнее', points: takeLast(sys, 10) },
-        { id: 'dia', label: 'Нижнее', points: takeLast(dia, 10), dashed: true, hollow: true },
-      ];
-    } else if (metric === 'pulse' && (chartBp || chartPulseStandalone)) {
-      const pts = chartBp
-        ? buildPulseSeries(chartEntries, chartBp.id, chartDt, true)
-        : buildPulseSeries(chartEntries, chartPulseStandalone!.id, chartDt, false);
-      chartSeries = [{ id: 'pulse', label: 'Пульс', points: takeLast(pts, 10) }];
-    } else if (metric === 'sugar' && chartSugar) {
-      chartSeries = [{ id: 'sugar', label: 'Сахар', points: takeLast(buildChartPoints(chartEntries, chartSugar.id, chartSugar, chartDt), 10) }];
-    }
+    const full = buildMetricSeries(chartEntries, chartReport.fields, metric);
+    chartSeries = full.map(s => ({
+      ...s,
+      points: chartRange === 0 ? s.points : takeLast(s.points, chartRange),
+    }));
   }
 
-  const targetLines: TargetLine[] = [];
-  if (showTargets && chartReport?.targets) {
-    const t = chartReport.targets;
-    if (metric === 'bp') {
-      if (t.sys !== undefined) targetLines.push({ id: 't-sys', label: 'Норма ВД', value: t.sys, dashed: false });
-      if (t.dia !== undefined) targetLines.push({ id: 't-dia', label: 'Норма НД', value: t.dia });
-    } else if (metric === 'pulse' && t.pulse !== undefined) {
-      targetLines.push({ id: 't-pulse', label: 'Норма пульса', value: t.pulse, dashed: false });
-    } else if (metric === 'sugar' && t.sugar !== undefined) {
-      targetLines.push({ id: 't-sugar', label: 'Норма сахара', value: t.sugar, dashed: false });
-    }
-  }
+  const targetLines: TargetLine[] = showTargets && chartReport
+    ? buildMetricTargets(chartReport.targets, metric)
+    : [];
 
   if (loading) {
     return <div className="dashboard"><p className="hint">Загрузка...</p></div>;
@@ -223,13 +202,23 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
               </button>
             ))}
           </div>
+          <div className="segmented" role="group" aria-label="Период">
+            {([10, 30, 0] as const).map(n => (
+              <button key={n} type="button" aria-pressed={chartRange === n}
+                      onClick={() => setChartRange(n)}>
+                {n === 0 ? 'Все' : n}
+              </button>
+            ))}
+          </div>
           <label className="dash-chart__targets">
             <input type="checkbox" checked={showTargets} onChange={toggleTargets} />
             Норма на графике
           </label>
         </div>
         {chartSeries.length > 0
-          ? <TrendChart series={chartSeries} targetLines={targetLines} noBucket height={160} width={340} />
+          ? <TrendChart series={chartSeries} targetLines={targetLines} noBucket
+                        pointWidth={chartRange === 0 ? 14 : undefined}
+                        height={160} width={340} />
           : <p className="hint">{chartEmptyHint || 'Нет данных для графика'}</p>}
       </section>
       <button

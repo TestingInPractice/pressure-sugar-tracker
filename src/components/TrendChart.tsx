@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Entry, Field, BPValues, ReportTargets } from '../types';
 import { datetimeFieldId } from '../logic/print-filter';
 import { classifyBP, classifySugar, isBPFieldName, isSugarField } from '../logic/classification';
@@ -315,6 +315,19 @@ export default function TrendChart({
   const textMutedCol = printMode ? '#5c6f81' : 'var(--text-muted)';
   const pointCol = (c: ChartPointColor) => (printMode ? PRINT_COLOR_MAP[c] : COLOR_MAP[c]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = useState(0);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => setContainerW(el.clientWidth);
+    update();
+    if (typeof ResizeObserver === 'undefined') return; // jsdom fallback
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Find the first BP or sugar field to chart
   const chartField = useMemo(() => {
     return fields.find(f => f.type === 'bp' || isBPFieldName(f.name) || isSugarField(f.name, f.unit));
@@ -350,6 +363,10 @@ export default function TrendChart({
     if (!pointWidth || maxLen === 0) return width;
     return Math.max(width, PAD.left + PAD.right + maxLen * pointWidth);
   }, [pointWidth, maxLen, width]);
+
+  const contentW = useMemo(() => (
+    pointWidth && maxLen > 0 ? PAD.left + PAD.right + maxLen * pointWidth : 0
+  ), [pointWidth, maxLen]);
 
   const inner = useMemo(() => ({
     x: PAD.left,
@@ -452,8 +469,10 @@ export default function TrendChart({
           ))}
         </div>
       )}
-      <div className="trend-chart__scroll">
-      <svg viewBox={`0 0 ${svgWidth} ${height}`} width="100%" style={{ minWidth: svgWidth }} role="img" aria-label="График показателей">
+      <div className="trend-chart__scroll" ref={scrollRef}>
+      <svg viewBox={`0 0 ${svgWidth} ${height}`} width="100%"
+           style={containerW > 0 && contentW > containerW ? { minWidth: contentW } : undefined}
+           role="img" aria-label="График показателей">
         {/* Target range band */}
         {bandRect && (
           <rect x={bandRect.x} y={bandRect.y} width={bandRect.width} height={bandRect.height}

@@ -4,47 +4,61 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ReportScreen from './ReportScreen';
 import { db, putReport, putEntry, getSyncState, putSyncState, saveSettings } from '../db/db';
-import { saveSyncFile, autoSyncIfHandle } from '../logic/sync-file';
+import { saveSyncFile } from '../logic/sync-file';
+import { syncAfterEntry } from '../logic/entry-sync';
 
 vi.mock('../logic/sync-file', () => ({
   saveSyncFile: vi.fn().mockResolvedValue({ kind: 'updated' }),
-  autoSyncIfHandle: vi.fn().mockResolvedValue('no-handle'),
+}));
+vi.mock('../logic/entry-sync', () => ({
+  syncAfterEntry: vi.fn().mockResolvedValue('noop'),
 }));
 const saveSyncMock = vi.mocked(saveSyncFile);
-const autoSyncMock = vi.mocked(autoSyncIfHandle);
+const syncAfterMock = vi.mocked(syncAfterEntry);
+
+/** Кнопки действий живут в закрытом <details> — открываем всё для доступности. */
+const openAllDetails = () => {
+  document.querySelectorAll<HTMLDetailsElement>('details').forEach(d => { d.open = true; });
+};
 
 beforeEach(async () => {
   await db.delete(); await db.open();
   saveSyncMock.mockClear();
   saveSyncMock.mockResolvedValue({ kind: 'updated' });
-  autoSyncMock.mockClear();
-  autoSyncMock.mockResolvedValue('no-handle');
+  syncAfterMock.mockClear();
+  syncAfterMock.mockResolvedValue('noop');
 });
 
 const seed = () =>
   putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
 
-it('renders «Печать/PDF» button that calls window.print()', async () => {
+it('renders «Печать» button that calls window.print()', async () => {
   await seed();
   const printSpy = vi.fn();
   vi.stubGlobal('print', printSpy);
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  const btn = await screen.findByRole('button', { name: 'Печать/PDF' });
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  const btn = await screen.findByRole('button', { name: 'Печать' });
   fireEvent.click(btn);
   expect(printSpy).toHaveBeenCalledTimes(1);
   vi.unstubAllGlobals();
 });
 
-it('has hidden .print-title heading and .no-print on action buttons', async () => {
+it('has hidden .print-title heading and .no-print on nav bar and add button', async () => {
   await seed();
   const { container } = render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  await screen.findByRole('button', { name: 'Печать/PDF' });
+  await screen.findByRole('button', { name: '+ Запись' });
   const title = container.querySelector('.print-title');
   expect(title).not.toBeNull();
   expect(title?.textContent).toBe('Отчёт АД');
-    for (const name of ['← Назад', 'Архивировать', 'Напоминание', 'Синхронизация', '+ Запись', 'Печать/PDF']) {
+    const nav = container.querySelector('.report-nav');
+    expect(nav?.className).toContain('no-print');
+    expect(screen.getByRole('button', { name: '+ Запись' }).className).toContain('no-print');
+    openAllDetails();
+    for (const name of ['← Назад', 'Архивировать', 'Напоминание', 'Синхронизация', 'Печать', 'Экспорт PDF', 'Удалить отчёт']) {
       const btn = screen.getByRole('button', { name });
-      expect(btn.className).toContain('no-print');
+      expect(btn.closest('.report-nav.no-print')).not.toBeNull();
     }
     fireEvent.click(screen.getByRole('button', { name: '+ Запись' }));
     expect(document.querySelector('form.no-print')).not.toBeNull();
@@ -74,9 +88,10 @@ it('removeEntry deletes after confirm accepted', async () => {
   confirmSpy.mockRestore();
 });
 
-it('renames report via inline editor', async () => {
+it('renames report via menu editor', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  openAllDetails();
   fireEvent.click(await screen.findByRole('button', { name: 'Переименовать отчёт' }));
   const input = screen.getByLabelText('Название отчёта');
   expect(input).toHaveValue('Отчёт АД');
@@ -93,6 +108,7 @@ it('renames report via inline editor', async () => {
 it('rename keeps old name when draft is blank', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  openAllDetails();
   fireEvent.click(await screen.findByRole('button', { name: 'Переименовать отчёт' }));
   fireEvent.change(screen.getByLabelText('Название отчёта'), { target: { value: '   ' } });
   fireEvent.click(screen.getByRole('button', { name: '✓' }));
@@ -105,6 +121,8 @@ it('deletes report with entries after confirm accepted', async () => {
   const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
   const onBack = vi.fn();
   render(<ReportScreen reportId="p1" onBack={onBack} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
   fireEvent.click(await screen.findByRole('button', { name: 'Удалить отчёт' }));
   await waitFor(async () => expect(await db.reports.get('p1')).toBeUndefined());
   expect(await db.entries.count()).toBe(0);
@@ -116,6 +134,8 @@ it('keeps report when delete confirm declined', async () => {
   await seed();
   const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
   fireEvent.click(await screen.findByRole('button', { name: 'Удалить отчёт' }));
   await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
   expect(await db.reports.get('p1')).toBeTruthy();
@@ -152,6 +172,7 @@ it('hides field from form and table via Поля отчёта toggle', async () 
   ], archived: false, createdAt: 1, updatedAt: 1 });
   render(<ReportScreen reportId="p4" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
   const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
   expect(boxes[0]).toBeDisabled();
   expect(boxes[1]).toBeDisabled();
@@ -174,12 +195,14 @@ it('print range filters entries by datetime field', async () => {
   const printSpy = vi.fn();
   vi.stubGlobal('print', printSpy);
   render(<ReportScreen reportId="p2" onBack={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
   expect(await screen.findByLabelText('С')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-08-31' } });
   await waitFor(() => expect(screen.queryByText('01.09 10:00')).toBeNull());
   expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Печать' }));
+  fireEvent.click(document.querySelector('.print-range button[type="submit"]')!);
   expect(printSpy).toHaveBeenCalledTimes(1);
   vi.unstubAllGlobals();
 });
@@ -205,6 +228,8 @@ const seedWithEntry = async (v: number) => {
 };
 
 const clickSync = async () => {
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
   fireEvent.click(await screen.findByRole('button', { name: 'Синхронизация' }));
 };
 
@@ -307,83 +332,57 @@ it('saveSyncFile rejection reports error without writing sync state', async () =
 });
 
 it('auto-syncs silently when enabled and hints when no file selected', async () => {
-  autoSyncMock.mockResolvedValue('no-handle');
+  syncAfterMock.mockResolvedValue('ios-manual');
   await seedWithEntry(0);
   await saveSettings({ masterOn: true, syncOn: true });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  await waitFor(() => expect(autoSyncMock).toHaveBeenCalled());
-  expect(await screen.findByText(/Автосинхронизация/)).toBeInTheDocument();
+  await waitFor(() => expect(syncAfterMock).toHaveBeenCalled());
+  expect(await screen.findByText(/кнопкой «Синхронизация»/)).toBeInTheDocument();
 });
 
 it('shows no hint when auto-sync writes to the file', async () => {
-  autoSyncMock.mockResolvedValue('written');
+  syncAfterMock.mockResolvedValue('written');
   await seedWithEntry(0);
   await saveSettings({ masterOn: true, syncOn: true });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  await waitFor(() => expect(autoSyncMock).toHaveBeenCalled());
-  expect(screen.queryByText(/Автосинхронизация/)).toBeNull();
+  await waitFor(() => expect(syncAfterMock).toHaveBeenCalled());
+  expect(screen.queryByText(/кнопкой «Синхронизация»/)).toBeNull();
 });
 
-it('first entry with syncOn triggers full first-save like the Sync button', async () => {
+it('saving with syncOn calls syncAfterEntry with allowFirstSave:true', async () => {
   await seed();
   await saveSettings({ masterOn: true, syncOn: true });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  await waitFor(async () => {
-    expect(saveSyncMock).toHaveBeenCalledTimes(1);
-    expect((await getSyncState('p1'))?.entries).toHaveLength(1);
-  });
+  await waitFor(() => expect(syncAfterMock).toHaveBeenCalled());
+  expect(syncAfterMock.mock.calls.some(([, , opts]) => opts?.allowFirstSave === true)).toBe(true);
 });
 
-it('does not repeat first-save on subsequent entries', async () => {
-  await seed();
-  await saveSettings({ masterOn: true, syncOn: true });
-  render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  const add = async () => {
-    fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  };
-  await add();
-  await waitFor(async () => expect(await getSyncState('p1')).toBeTruthy());
-  saveSyncMock.mockClear();
-  await add();
-  await waitFor(async () => expect(await db.entries.count()).toBe(2));
-  expect(saveSyncMock).not.toHaveBeenCalled();
-});
-
-it('cancelled first-save is not retried and keeps the pick-file hint', async () => {
-  saveSyncMock.mockResolvedValue({ kind: 'cancelled' });
-  await seed();
-  await saveSettings({ masterOn: true, syncOn: true });
-  render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  await waitFor(() => expect(saveSyncMock).toHaveBeenCalledTimes(1));
-  saveSyncMock.mockClear();
-  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  await waitFor(async () => expect(await db.entries.count()).toBe(2));
-  expect(saveSyncMock).not.toHaveBeenCalled();
-  expect(await screen.findByText(/сначала выберите файл/)).toBeInTheDocument();
-});
-
-it('hints manual update when sync state exists but file handle is gone', async () => {
+it('background effect syncs with allowFirstSave:false after an entry is added', async () => {
   await seedWithEntry(0);
-  await putSyncState({
-    reportId: 'p1', reportName: 'Отчёт АД', fields: [], syncedAt: 1,
-    entries: [{ id: 'e0', reportId: 'p1', values: { f1: 0 }, createdAt: 1 }],
-  });
   await saveSettings({ masterOn: true, syncOn: true });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  expect(await screen.findByText(/обновит.*кнопкой «Синхронизация»/)).toBeInTheDocument();
-  expect(saveSyncMock).not.toHaveBeenCalled();
+  await waitFor(() => {
+    expect(syncAfterMock.mock.calls.some(([, , o]) => o?.allowFirstSave === false)).toBe(true);
+  }, { timeout: 3000 });
+});
+
+it('does not call syncAfterEntry when syncOn is off', async () => {
+  await seedWithEntry(0);
+  await saveSettings({ masterOn: true, syncOn: false });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '+ Запись' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(async () => expect(await db.entries.count()).toBe(2));
+  await new Promise(r => setTimeout(r, 700));
+  expect(syncAfterMock).not.toHaveBeenCalled();
 });
 
 it('shows sync file info when sync state exists', async () => {
@@ -399,7 +398,7 @@ it('shows sync file info when sync state exists', async () => {
 it('hides sync file info when never synced', async () => {
   await seedWithEntry(0);
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  await screen.findByRole('button', { name: 'Печать/PDF' });
+  await screen.findByRole('button', { name: '+ Запись' });
   expect(screen.queryByText(/Файл: .*sync\.json/)).not.toBeInTheDocument();
 });
 
@@ -420,7 +419,9 @@ const seedPrintable = async () => {
 it('print dialog offers charts and norms, print block renders them', async () => {
   await seedPrintable();
   render(<ReportScreen reportId="pp" onBack={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
   expect(screen.getByLabelText('График: давление')).toBeChecked();
   expect(screen.getByLabelText('График: сахар')).toBeChecked();
   expect(screen.getByLabelText('Норма на графиках')).toBeChecked();
@@ -434,7 +435,9 @@ it('print dialog offers charts and norms, print block renders them', async () =>
 it('print chart toggles remove charts and norm lines', async () => {
   await seedPrintable();
   render(<ReportScreen reportId="pp" onBack={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать/PDF' }));
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
   await screen.findByLabelText('График: давление');
   await screen.findByText('130/85');
   fireEvent.click(screen.getByLabelText('График: давление'));
@@ -445,10 +448,10 @@ it('print chart toggles remove charts and norm lines', async () => {
   expect(block!.querySelectorAll('svg').length).toBeGreaterThanOrEqual(1);
 });
 
-it('saves personal targets via Мои нормы', async () => {
+it('saves personal targets via visible Мои нормы panel', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
-  await screen.findByRole('button', { name: 'Печать/PDF' });
+  await screen.findByRole('button', { name: '+ Запись' });
   expect(screen.getByText('Нормы не заданы')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
   fireEvent.change(screen.getByLabelText('Верхнее (ВД)'), { target: { value: '120' } });
@@ -457,5 +460,5 @@ it('saves personal targets via Мои нормы', async () => {
   await waitFor(async () => {
     expect((await db.reports.get('p1'))?.targets).toEqual({ sys: 120, dia: 80, pulse: undefined, sugar: undefined });
   });
-  expect(screen.getByText(/Норма: ВД 120 · НД 80/)).toBeInTheDocument();
+  expect(screen.getByText(/ВД 120 · НД 80/)).toBeInTheDocument();
 });

@@ -122,6 +122,8 @@
 
 html, body {
   margin: 0;
+  /* Контент никогда не уходит вправо: только перенос строк вниз */
+  overflow-x: hidden;
   /* Match theme_color for iOS 26 standalone chrome; falls back to --bg in browser */
   background: #eef2f6;
   color: var(--text);
@@ -185,8 +187,9 @@ html, body {
 /* Compact header on narrow screens */
 @media (max-width: 480px) {
   .app-header {
-    gap: 8px;
+    gap: 6px 8px;
     padding: 10px 12px;
+    flex-wrap: wrap;
   }
   .app-header h1 {
     font-size: 17px;
@@ -194,16 +197,23 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-    flex: 1 1 0;
+    flex: 1 1 100%;
   }
   .app-switches {
     flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px 12px;
-    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 1 1 100%;
     max-width: 100%;
     align-items: center;
+  }
+  .master-switch {
+    gap: 6px;
+    font-size: 13px;
+  }
+  .master-switch b {
+    display: none;
   }
 }
 
@@ -490,31 +500,44 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 10px;
-  padding: 4px 16px 28px;
+  gap: 12px;
+  padding: 8px 16px 28px;
 }
 
 .screen > * {
   min-width: 0;
 }
 
-.screen > .title-row,
+.screen > .report-nav,
 .screen > form,
 .screen > .fields-editor,
 .screen > .reminder-panel,
+.screen > .norms-panel,
 .screen > .entries-scroll,
 .screen > .print-title {
   flex: 1 1 100%;
 }
 
 .screen > button {
-  flex: 1 1 calc(50% - 5px);
+  flex: 1 1 calc(50% - 6px);
   min-height: 48px;
 }
 
 .screen > .btn-back {
   flex: 0 0 auto;
   align-self: flex-start;
+}
+
+.report-nav .btn-back {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding-left: 6px;
+}
+
+.screen > .report-add {
+  flex: 1 1 100%;
+  min-height: 52px;
+  font-size: 17px;
 }
 
 .screen > h2,
@@ -631,14 +654,17 @@ button:disabled {
 
 .screen .overflow-menu {
   flex: 0 0 auto;
+  position: relative;
 }
 
 .screen .overflow-menu > summary {
   list-style: none;
-  min-height: 48px;
-  padding: 10px 16px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 14px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font: inherit;
   font-weight: 600;
@@ -651,28 +677,85 @@ button:disabled {
 }
 
 .screen .overflow-menu[open] > summary {
-  margin-bottom: 4px;
+  background: var(--surface-2);
 }
 
-.screen .overflow-menu .overflow-items {
+.screen .overflow-menu .overflow-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+}
+
+.screen .overflow-menu .overflow-menu__popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: min(280px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-raised);
+  animation: menu-pop 0.12s ease;
 }
 
-.screen .overflow-menu .overflow-items > button {
-  flex: 1 1 calc(50% - 4px);
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.screen .overflow-menu .overflow-menu__popover > * {
+  flex: none;
+}
+
+.screen .overflow-menu .overflow-menu__popover > button {
+  width: 100%;
   min-height: 44px;
+  text-align: left;
+  font-weight: 500;
 }
 
-.title-row {
+.screen .overflow-menu .overflow-menu__popover > .btn-danger {
+  color: var(--danger);
+}
+
+.screen .overflow-menu .overflow-menu__popover .fields-visibility {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 8px 12px 4px;
+}
+
+.screen .overflow-menu .overflow-menu__popover .fields-visibility > summary {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.screen .overflow-menu .overflow-menu__popover .fields-visibility label {
+  min-height: 40px;
+  font-size: 15px;
+}
+
+.screen .overflow-menu .overflow-menu__popover .btn-row button {
+  min-width: 0;
+}
+
+.report-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0 0;
+  min-height: 48px;
 }
 
-.title-row h2 {
+.report-nav__title {
   margin: 0;
   flex: 1;
   min-width: 0;
@@ -682,7 +765,13 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
-.rename-row {
+.report-nav .btn-icon {
+  flex: 0 0 auto;
+}
+
+.report-nav .rename-row {
+  flex: 1;
+  min-width: 0;
   flex-direction: row;
   align-items: center;
 }
@@ -898,6 +987,7 @@ p.error {
 .entries-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -929,7 +1019,7 @@ p.error {
   vertical-align: top;
 }
 
-/* Таблица записей: всегда умещается по ширине экрана */
+/* Таблица записей: всегда умещается по ширине экрана (контент переносится вниз, а не вправо) */
 .entries-table {
   width: 100%;
   border-collapse: collapse;
@@ -975,7 +1065,8 @@ p.error {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   background: var(--surface-2);
 }
 
@@ -1133,7 +1224,7 @@ p.error {
    ============================================================ */
 
 .dashboard {
-  padding: 4px 16px 28px;
+  padding: 8px 16px 28px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1278,10 +1369,10 @@ p.error {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-card);
-  padding: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dash-chart__controls {
@@ -1562,6 +1653,60 @@ p.error {
 
 @media (max-width: 480px) {
   .entries-cards { display: block; }
+}
+
+/* Мои нормы: панель на экране */
+.norms-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  padding: 6px 8px 6px 14px;
+}
+
+.norms-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.norms-panel__title {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.norms-panel__values {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.norms-panel__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.norms-panel__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.norms-panel__fields input {
+  width: 100%;
+  padding: 8px;
+  font-size: 15px;
 }
 
 /* Undo toast */

@@ -1,8 +1,9 @@
 import type { Entry, Field } from '../types';
 
-/** Поле автонумерации строк — числовое поле, имя которого начинается со «Номер» */
+/** Поле автонумерации строк — числовое поле «№» (старые отчёты: имя начинается со «Номер») */
 export function numberingFieldId(fields: Field[]): string | undefined {
-  return fields.find(f => f.type === 'number' && f.name.trim().toLowerCase().startsWith('номер'))?.id;
+  const n = (f: Field) => f.name.trim().toLowerCase();
+  return fields.find(f => f.type === 'number' && (n(f).startsWith('номер') || n(f).startsWith('№')))?.id;
 }
 
 /**

@@ -13,6 +13,9 @@ describe('numberingFieldId', () => {
   it('finds number field named Номер', () => {
     expect(numberingFieldId([mk('Номер', 'number'), mk('Дата и время', 'datetime')])).toBe('f-Номер');
   });
+  it('finds number field named №', () => {
+    expect(numberingFieldId([mk('№', 'number'), mk('Дата и время', 'datetime')])).toBe('f-№');
+  });
   it('ignores non-number and unrelated fields', () => {
     expect(numberingFieldId([mk('Дата и время', 'datetime'), mk('Сахар', 'number')])).toBeUndefined();
   });

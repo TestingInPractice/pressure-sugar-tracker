@@ -7,7 +7,8 @@ import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
 import { onEntryRecorded, nowLocalInput } from '../logic/reminders';
 import { classifySync, plural, syncFilename } from '../logic/sync';
 import { getSyncState, putSyncState, getSyncFileHandle } from '../db/db';
-import { saveSyncFile, autoSyncIfHandle } from '../logic/sync-file';
+import { saveSyncFile } from '../logic/sync-file';
+import { syncAfterEntry } from '../logic/entry-sync';
 import { useSettings } from '../hooks/useSettings';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
@@ -17,8 +18,9 @@ import type { MetricId } from './TrendChart';
 
 interface Props { reportId: string; onBack: () => void; autoOpenEntry?: boolean; onEntryFormOpened?: () => void }
 
-const TARGET_LABELS = { sys: 'Верхнее (ВД)', dia: 'Нижнее (НД)', pulse: 'Пульс', sugar: 'Сахар (ммоль/л)' } as const;
+const TARGET_LABELS = { sys: 'Верхнее (ВД)', dia: 'Нижнее (НД)', pulse: 'Пульс', sugar: 'Сахар' } as const;
 type TargetKey = keyof typeof TARGET_LABELS;
+const IOS_AUTO_SYNC_HINT = 'На iPhone автосинхронизация недоступна — обновите файл кнопкой «Синхронизация»';
 
 export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryFormOpened }: Props) {
   const [report, setReport] = useState<Report | null>(null);
@@ -32,12 +34,15 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [printCharts, setPrintCharts] = useState({ bp: true, pulse: true, sugar: true, norms: true });
   const [syncMsg, setSyncMsg] = useState('');
+  const [pdfMsg, setPdfMsg] = useState('');
   const [autoSyncHint, setAutoSyncHint] = useState('');
   const [syncInfo, setSyncInfo] = useState<{ fileName: string; syncedAt: number; count: number } | null>(null);
   const [targetsDraft, setTargetsDraft] = useState<Record<TargetKey, string> | null>(null);
   const { settings, setMasterOn } = useSettings();
   const autoSyncReady = useRef(false);
-  const firstSyncFor = useRef<string | null>(null);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => menuRef.current?.removeAttribute('open');
 
   // Полный путь браузер не отдаёт (приватность File System Access),
   // поэтому показываем имя файла + дату и число записей из sync-state.
@@ -71,13 +76,12 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
     if (!settings?.syncOn || !report) return;
     if (!autoSyncReady.current) { autoSyncReady.current = true; return; }
     const t = setTimeout(async () => {
-      const res = await autoSyncIfHandle(report, entries);
-      if (res !== 'no-handle') { setAutoSyncHint(''); return; }
-      if (await ensureFirstSave(entries.length > 0)) { setAutoSyncHint(''); return; }
-      const synced = await getSyncState(report.id);
-      setAutoSyncHint(synced
-        ? 'Автосинхронизация файла недоступна — обновите его кнопкой «Синхронизация»'
-        : 'Автосинхронизация: сначала выберите файл кнопкой «Синхронизация»');
+      const res = await syncAfterEntry(report, entries, { allowFirstSave: false });
+      if (res === 'ios-manual') {
+        setAutoSyncHint(IOS_AUTO_SYNC_HINT);
+        return;
+      }
+      setAutoSyncHint('');
     }, 500);
     return () => clearTimeout(t);
   }, [entries, report, settings?.syncOn]);
@@ -100,19 +104,6 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   ).filter(g => g.series.some(s => s.points.length > 0));
   const setRangePart = (part: 'from' | 'to', value: string) =>
     setRange(prev => ({ ...(prev ?? { from: '', to: '' }), [part]: value }));
-
-  // Первое сохранение файла — как ручная кнопка «Синхронизация».
-  // Вызывается один раз на отчёт: дальше обновления идут через сохранённый handle.
-  // Из saveEntry идёт с живым жестом (пикник/шеринг разрешены), из эффекта —
-  // с фолбэком на скачивание, если браузер заблокировал диалог без жеста.
-  const ensureFirstSave = async (hasEntries: boolean): Promise<boolean> => {
-    if (!report || !hasEntries || firstSyncFor.current === reportId) return false;
-    const [handle, synced] = await Promise.all([getSyncFileHandle(report.id), getSyncState(report.id)]);
-    if (handle || synced) return false;
-    firstSyncFor.current = reportId;
-    await syncReport();
-    return true;
-  };
 
   const saveEntry = async (values: Entry['values']) => {
     const vals = { ...values };
@@ -138,7 +129,10 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
     setEditingEntry(null); setShowForm(false);
     const updatedEntries = await listEntries(reportId);
     setEntries(updatedEntries);
-    if (settings?.syncOn) await ensureFirstSave(updatedEntries.length > 0);
+    if (settings?.syncOn && updatedEntries.length > 0) {
+      const res = await syncAfterEntry(report, updatedEntries, { allowFirstSave: true });
+      setAutoSyncHint(res === 'ios-manual' ? IOS_AUTO_SYNC_HINT : '');
+    }
   };
 
   const removeEntry = async (e: Entry) => {
@@ -196,7 +190,42 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
     if (t?.dia !== undefined) parts.push(`НД ${t.dia}`);
     if (t?.pulse !== undefined) parts.push(`П ${t.pulse}`);
     if (t?.sugar !== undefined) parts.push(`сахар ${t.sugar}`);
-    return parts.length > 0 ? `Норма: ${parts.join(' · ')}` : 'Нормы не заданы';
+    return parts.length > 0 ? parts.join(' · ') : 'Нормы не заданы';
+  };
+
+  const fmtRuDate = (iso?: string) => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return d && m && y ? `${d}.${m}.${y}` : iso;
+  };
+
+  const exportPdf = async () => {
+    closeMenu();
+    try {
+      const { buildReportPdf } = await import('../logic/pdf-export');
+      const rangeLabel = range
+        ? `Период: ${fmtRuDate(range.from) || '…'} — ${fmtRuDate(range.to) || '…'}`
+        : undefined;
+      const norms = targetsSummary();
+      const blob = buildReportPdf(report, visibleEntries, {
+        rangeLabel,
+        normsLabel: norms === 'Нормы не заданы' ? undefined : norms,
+      });
+      const safeName = report.name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
+      const file = new File([blob], `${safeName}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: report.name });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeName}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch {
+      setPdfMsg('Не удалось создать PDF');
+    }
   };
 
   const removeReport = async () => {
@@ -250,80 +279,82 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
 
   return (
     <div className="screen">
-      <button className="no-print btn-back" onClick={onBack}>← Назад</button>
-      {renaming ? (
-        <form className="rename-row no-print"
-              onSubmit={e => { e.preventDefault(); void saveRename(); }}>
-          <input aria-label="Название отчёта" value={nameDraft} autoFocus
-                 onChange={e => setNameDraft(e.target.value)} />
-          <button type="submit" className="primary" disabled={!nameDraft.trim()}>✓</button>
-          <button type="button" onClick={() => setRenaming(false)}>✕</button>
-        </form>
-      ) : (
-        <div className="title-row">
-          <h2 className="no-print">{report.name}</h2>
-          <button className="no-print btn-icon" aria-label="Переименовать отчёт"
-                  onClick={() => { setNameDraft(report.name); setRenaming(true); }}>✎</button>
-        </div>
-      )}
+      <div className="report-nav no-print">
+        <button className="btn-back" onClick={onBack}>← Назад</button>
+        {renaming ? (
+          <form className="rename-row"
+                onSubmit={e => { e.preventDefault(); void saveRename(); }}>
+            <input aria-label="Название отчёта" value={nameDraft} autoFocus
+                   onChange={e => setNameDraft(e.target.value)} />
+            <button type="submit" className="primary" disabled={!nameDraft.trim()}>✓</button>
+            <button type="button" onClick={() => setRenaming(false)}>✕</button>
+          </form>
+        ) : (
+          <h2 className="report-nav__title">{report.name}</h2>
+        )}
+        <details ref={menuRef} className="overflow-menu" onToggle={e => setMenuOpen(e.currentTarget.open)}>
+          <summary aria-label="Дополнительные действия">⋯</summary>
+          {menuOpen && <div className="overflow-menu__backdrop" onClick={closeMenu} />}
+          <div className="overflow-menu__popover">
+            <button onClick={() => { closeMenu(); if (dtFieldId) setShowRange(v => !v); else window.print(); }}>Печать</button>
+            <button onClick={() => { void exportPdf(); }}>Экспорт PDF</button>
+            <button onClick={() => { closeMenu(); void syncReport(); }}>Синхронизация</button>
+            <button onClick={() => { closeMenu(); setShowReminder(v => !v); }}>Напоминание</button>
+            <button aria-label="Переименовать отчёт"
+                    onClick={() => { closeMenu(); setNameDraft(report.name); setRenaming(true); }}>Переименовать</button>
+            <button onClick={() => { closeMenu(); void putReport({ ...report, archived: true }).then(onBack); }}>Архивировать</button>
+            <button className="btn-danger" onClick={() => { closeMenu(); void removeReport(); }}>Удалить отчёт</button>
+            <details className="fields-visibility">
+              <summary>Поля отчёта</summary>
+              {report.fields.map(f => {
+                const locked = f.id === numId || f.id === dtFieldId;
+                return (
+                  <label key={f.id}>
+                    <input type="checkbox" checked={!f.hidden} disabled={locked}
+                           onChange={() => void toggleFieldHidden(f.id)} />
+                    {f.name}{locked ? ' (всегда)' : ''}
+                  </label>
+                );
+              })}
+            </details>
+          </div>
+        </details>
+      </div>
       <>
-          <button className="no-print primary"
+          <button className="no-print primary report-add"
                   onClick={() => { setEditingEntry(null); setShowForm(true); }}>+ Запись</button>
-          <button className="no-print"
-                  onClick={() => (dtFieldId ? setShowRange(v => !v) : window.print())}>Печать/PDF</button>
-          <details className="no-print overflow-menu">
-            <summary aria-label="Дополнительные действия">⋯</summary>
-            <div className="overflow-items">
-              <button className="no-print" onClick={async () => { await putReport({ ...report, archived: true }); onBack(); }}>Архивировать</button>
-              <button className="no-print" onClick={() => setShowReminder(v => !v)}>Напоминание</button>
-              <button className="no-print" onClick={() => void syncReport()}>Синхронизация</button>
-              <button className="no-print btn-danger" onClick={() => void removeReport()}>Удалить отчёт</button>
-            </div>
-            <div className="overflow-items overflow-items--nested">
-              <details className="fields-visibility">
-                <summary>Поля отчёта</summary>
-                {report.fields.map(f => {
-                  const locked = f.id === numId || f.id === dtFieldId;
-                  return (
-                    <label key={f.id}>
-                      <input type="checkbox" checked={!f.hidden} disabled={locked}
-                             onChange={() => void toggleFieldHidden(f.id)} />
-                      {f.name}{locked ? ' (всегда)' : ''}
+          <section className="norms-panel no-print" aria-label="Мои нормы">
+            {targetsDraft ? (
+              <>
+                <div className="norms-panel__fields">
+                  {(Object.keys(TARGET_LABELS) as TargetKey[]).map(k => (
+                    <label key={k}>
+                      <span>{TARGET_LABELS[k]}</span>
+                      <input inputMode="decimal" aria-label={TARGET_LABELS[k]} value={targetsDraft[k]}
+                             onChange={e => setTargetsDraft({ ...targetsDraft, [k]: e.target.value })} />
                     </label>
-                  );
-                })}
-              </details>
-              <details className="fields-visibility">
-                <summary>Мои нормы</summary>
-                {targetsDraft ? (
-                  <>
-                    {(Object.keys(TARGET_LABELS) as TargetKey[]).map(k => (
-                      <label key={k}>
-                        {TARGET_LABELS[k]}
-                        <input inputMode="decimal" aria-label={TARGET_LABELS[k]} value={targetsDraft[k]}
-                               onChange={e => setTargetsDraft({ ...targetsDraft, [k]: e.target.value })} />
-                      </label>
-                    ))}
-                    <div className="btn-row">
-                      <button type="button" className="primary" onClick={() => void saveTargets()}>Сохранить</button>
-                      <button type="button" onClick={() => setTargetsDraft(null)}>Отмена</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="hint">{targetsSummary()}</p>
-                    <button type="button" onClick={openTargets}>Изменить</button>
-                  </>
-                )}
-              </details>
-            </div>
-          </details>
+                  ))}
+                </div>
+                <div className="btn-row">
+                  <button type="button" className="primary" onClick={() => void saveTargets()}>Сохранить</button>
+                  <button type="button" onClick={() => setTargetsDraft(null)}>Отмена</button>
+                </div>
+              </>
+            ) : (
+              <div className="norms-panel__row">
+                <span className="norms-panel__title">Мои нормы</span>
+                <span className="norms-panel__values">{targetsSummary()}</span>
+                <button type="button" className="btn-icon" aria-label="Изменить" onClick={openTargets}>✎</button>
+              </div>
+            )}
+          </section>
           {syncInfo && (
             <p className="hint no-print">
               Файл: {syncInfo.fileName} · синх. {new Date(syncInfo.syncedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · {syncInfo.count} {plural(syncInfo.count, ['запись', 'записи', 'записей'])}
             </p>
           )}
           {syncMsg && <p className="hint no-print">{syncMsg}</p>}
+          {pdfMsg && <p className="hint no-print">{pdfMsg}</p>}
           {autoSyncHint && <p className="hint no-print">{autoSyncHint}</p>}
           {showRange && (
             <form className="print-range no-print"
@@ -363,19 +394,29 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
             />
           )}
           {showForm && (
-            <EntryForm
-              key={editingEntry?.id ?? 'new'}
-              fields={report.fields}
-              initial={editingEntry?.values ??
-                (numId || dtFieldId
-                  ? {
-                      ...(numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : {}),
-                      ...(dtFieldId ? { [dtFieldId]: nowLocalInput() } : {}),
-                    }
-                  : undefined)}
-              onSave={v => void saveEntry(v)}
-              onCancel={() => { setEditingEntry(null); setShowForm(false); }}
-            />
+            <div className="bottom-sheet-overlay" onClick={() => { setEditingEntry(null); setShowForm(false); }}>
+              <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+                <div className="bottom-sheet__grabber" />
+                <div className="bottom-sheet__header">
+                  <span className="bottom-sheet__title">{report.name}</span>
+                  <button className="btn-icon" onClick={() => { setEditingEntry(null); setShowForm(false); }}
+                          aria-label="Закрыть">✕</button>
+                </div>
+                <EntryForm
+                  key={editingEntry?.id ?? 'new'}
+                  fields={report.fields}
+                  initial={editingEntry?.values ??
+                    (numId || dtFieldId
+                      ? {
+                          ...(numId ? { [numId]: nextEntryNumber(entries, numId) ?? 1 } : {}),
+                          ...(dtFieldId ? { [dtFieldId]: nowLocalInput() } : {}),
+                        }
+                      : undefined)}
+                  onSave={v => void saveEntry(v)}
+                  onCancel={() => { setEditingEntry(null); setShowForm(false); }}
+                />
+              </div>
+            </div>
           )}
           <h2 className="print-title">{report.name}</h2>
           <EntriesTable

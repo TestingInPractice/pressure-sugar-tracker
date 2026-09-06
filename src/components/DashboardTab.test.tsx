@@ -1,7 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeEach, vi } from 'vitest';
 import DashboardTab from './DashboardTab';
-import { db, putReport, putEntry } from '../db/db';
+import { db, putReport, putEntry, saveSettings } from '../db/db';
+import { syncAfterEntry } from '../logic/entry-sync';
+
+vi.mock('../logic/entry-sync', () => ({
+  syncAfterEntry: vi.fn().mockResolvedValue('written'),
+}));
+const syncAfterMock = vi.mocked(syncAfterEntry);
 import type { Field } from '../types';
 
 const bpField: Field = {
@@ -11,7 +17,11 @@ const bpField: Field = {
 const sugarField: Field = { id: 's1', name: 'Сахар', type: 'number', unit: 'ммоль/л', required: false, width: 30 };
 const dtField: Field = { id: 'd1', name: 'Дата и время', type: 'datetime', required: true, width: 30 };
 
-beforeEach(async () => { await db.delete(); await db.open(); });
+beforeEach(async () => {
+  await db.delete(); await db.open();
+  syncAfterMock.mockClear();
+  syncAfterMock.mockResolvedValue('written');
+});
 
 it('shows empty state with single CTA when no reports', async () => {
   const onCreate = vi.fn();
@@ -49,6 +59,36 @@ it('quick-add saves a new entry', async () => {
     expect(rows[0].values.bp1).toEqual({ systolic: '130', diastolic: '85' });
   });
   expect(await screen.findByText('Запись сохранена')).toBeInTheDocument();
+});
+
+it('quick-add calls syncAfterEntry with allowFirstSave when syncOn', async () => {
+  await saveSettings({ masterOn: true, syncOn: true });
+  await putReport({ id: 'r1', name: 'Давление', fields: [bpField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
+  render(<DashboardTab onCreate={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
+  await screen.findByText('Давление', { selector: '.bottom-sheet__title' });
+  fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '85' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(syncAfterMock).toHaveBeenCalled());
+  const [rep, entries, opts] = syncAfterMock.mock.calls[0];
+  expect(rep.id).toBe('r1');
+  expect(entries).toHaveLength(1);
+  expect(opts).toEqual({ allowFirstSave: true });
+  expect(await screen.findByText('Запись сохранена')).toBeInTheDocument();
+});
+
+it('quick-add shows manual hint when syncAfterEntry returns ios-manual', async () => {
+  await saveSettings({ masterOn: true, syncOn: true });
+  syncAfterMock.mockResolvedValue('ios-manual');
+  await putReport({ id: 'r1', name: 'Давление', fields: [bpField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
+  render(<DashboardTab onCreate={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
+  await screen.findByText('Давление', { selector: '.bottom-sheet__title' });
+  fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '85' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByText(/на iPhone файл обновите вручную/)).toBeInTheDocument();
 });
 
 it('shows backup row with date when last-backup-at is set', async () => {

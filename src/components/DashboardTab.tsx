@@ -4,6 +4,8 @@ import { listReports, listEntries, putEntry, putReport } from '../db/db';
 import { genId } from '../logic/report-config';
 import { datetimeFieldId } from '../logic/print-filter';
 import { numberingFieldId, nextEntryNumber } from '../logic/entry-number';
+import { syncAfterEntry } from '../logic/entry-sync';
+import { useSettings } from '../hooks/useSettings';
 import { nowLocalInput } from '../logic/reminders';
 import { onEntryRecorded } from '../logic/reminders';
 import TrendChart, {
@@ -28,6 +30,7 @@ const METRICS: { id: Metric; label: string }[] = [
 ];
 
 export default function DashboardTab({ onCreate, onGoMore }: Props) {
+  const { settings } = useSettings();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [quickAddReport, setQuickAddReport] = useState<Report | null>(null);
@@ -104,7 +107,15 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
       });
     }
     setQuickAddReport(null);
-    setUndoMsg('Запись сохранена');
+    if (settings?.syncOn) {
+      const updated = await listEntries(quickAddReport.id);
+      const syncRes = await syncAfterEntry(quickAddReport, updated, { allowFirstSave: true });
+      setUndoMsg(syncRes === 'ios-manual'
+        ? 'Запись сохранена · на iPhone файл обновите вручную (⋯ → Синхронизация)'
+        : 'Запись сохранена');
+    } else {
+      setUndoMsg('Запись сохранена');
+    }
     setTimeout(() => setUndoMsg(''), 3000);
     void reload();
   };
@@ -218,7 +229,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
         {chartSeries.length > 0
           ? <TrendChart series={chartSeries} targetLines={targetLines} noBucket
                         pointWidth={chartRange === 0 ? 14 : undefined}
-                        height={160} width={340} />
+                        height={150} width={340} />
           : <p className="hint">{chartEmptyHint || 'Нет данных для графика'}</p>}
       </section>
       <button

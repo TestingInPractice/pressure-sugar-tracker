@@ -3,8 +3,10 @@ import { makeDefaultFields, createDefaultReport, stripRemovedFieldValues, assert
 
 it('default template matches spec', () => {
   const fields = makeDefaultFields();
-  expect(fields.map(f => f.name)).toEqual(['Номер', 'Дата и время', 'ВД / НД / П', 'Сахар', 'Примечание']);
-  expect(fields.every(f => f.width === 30)).toBe(true);
+  expect(fields.map(f => f.name)).toEqual(['№', 'Дата и время', 'ВД / НД / П', 'Сахар', 'Примечание']);
+  expect(fields.find(f => f.name === 'Сахар')?.unit).toBeUndefined();
+  expect(fields.find(f => f.name === 'Примечание')?.width).toBeLessThan(30);
+  expect(fields.filter(f => f.name !== 'Примечание').every(f => f.width === 30)).toBe(true);
   const dt = fields.find(f => f.type === 'datetime')!;
   expect(dt.required).toBe(true);
   const pressure = fields.find(f => f.name === 'ВД / НД / П')!;

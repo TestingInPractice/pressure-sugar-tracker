@@ -13,8 +13,8 @@ export const BP_PARTS = [
   { id: 'pulse', label: 'П' },
 ] as const;
 
-function mkField(name: string, type: Field['type'], unit?: string, required = false): Field {
-  return { id: genId('fld'), name, type, unit, required, width: DEFAULT_FIELD_WIDTH };
+function mkField(name: string, type: Field['type'], unit?: string, required = false, width = DEFAULT_FIELD_WIDTH): Field {
+  return { id: genId('fld'), name, type, unit, required, width };
 }
 
 export function mkBPField(name = 'ВД / НД / П'): Field {
@@ -30,11 +30,11 @@ export function mkBPField(name = 'ВД / НД / П'): Field {
 
 export function makeDefaultFields(): Field[] {
   return [
-    mkField('Номер', 'number'),
+    mkField('№', 'number'),
     mkField('Дата и время', 'datetime', undefined, true),
     mkBPField(),
-    mkField('Сахар', 'number', 'ммоль/л'),
-    mkField('Примечание', 'text'),
+    mkField('Сахар', 'number'),
+    mkField('Примечание', 'text', undefined, false, 12),
   ];
 }
 

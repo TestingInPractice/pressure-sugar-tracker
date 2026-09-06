@@ -18,7 +18,14 @@ describe('formatCell', () => {
 
   it('passes through values without datetime pattern', () => {
     expect(formatCell(dt, 'мусор')).toBe('мусор');
+  });
+
+  it('rounds number values to one decimal place', () => {
     expect(formatCell(num, '5.6')).toBe('5.6');
+    expect(formatCell(num, '5.333333333333333')).toBe('5.3');
+    expect(formatCell(num, '5.65')).toBe('5.7');
+    expect(formatCell(num, '')).toBe('');
+    expect(formatCell(num, 'abc')).toBe('abc');
   });
 });
 

@@ -13,7 +13,7 @@ async function writeHandle(handle: FileSystemFileHandle, json: string): Promise<
   await writable.close();
 }
 
-function hasFsAccess(): boolean {
+export function hasFsAccess(): boolean {
   return typeof window !== 'undefined'
     && typeof window.showSaveFilePicker === 'function'
     && typeof FileSystemFileHandle !== 'undefined';

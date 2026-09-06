@@ -32,15 +32,16 @@ beforeEach(async () => {
 const seed = () =>
   putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
 
-it('renders «Печать» button that calls window.print()', async () => {
+it('PDF icon opens bottom sheet; Печать calls window.print()', async () => {
   await seed();
   const printSpy = vi.fn();
   vi.stubGlobal('print', printSpy);
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
-  openAllDetails();
-  const btn = await screen.findByRole('button', { name: 'Печать' });
-  fireEvent.click(btn);
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  expect(screen.getByText('Экспорт отчёта')).toBeInTheDocument();
+  const printBtn = screen.getByRole('button', { name: 'Печать' });
+  fireEvent.click(printBtn);
   expect(printSpy).toHaveBeenCalledTimes(1);
   vi.unstubAllGlobals();
 });
@@ -56,7 +57,7 @@ it('has hidden .print-title heading and .no-print on nav bar and add button', as
     expect(nav?.className).toContain('no-print');
     expect(screen.getByRole('button', { name: '+ Запись' }).className).toContain('no-print');
     openAllDetails();
-    for (const name of ['← Назад', 'Архивировать', 'Напоминание', 'Синхронизация', 'Печать', 'Экспорт PDF', 'Удалить отчёт']) {
+    for (const name of ['← Назад', 'Архивировать', 'Напоминание', 'Синхронизация', 'Удалить отчёт']) {
       const btn = screen.getByRole('button', { name });
       expect(btn.closest('.report-nav.no-print')).not.toBeNull();
     }
@@ -196,13 +197,12 @@ it('print range filters entries by datetime field', async () => {
   vi.stubGlobal('print', printSpy);
   render(<ReportScreen reportId="p2" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
-  openAllDetails();
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
   expect(await screen.findByLabelText('С')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-08-31' } });
   await waitFor(() => expect(screen.queryByText('01.09 10:00')).toBeNull());
   expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
-  fireEvent.click(document.querySelector('.print-range button[type="submit"]')!);
+  fireEvent.click(screen.getByRole('button', { name: 'Печать' }));
   expect(printSpy).toHaveBeenCalledTimes(1);
   vi.unstubAllGlobals();
 });
@@ -420,8 +420,7 @@ it('print dialog offers charts and norms, print block renders them', async () =>
   await seedPrintable();
   render(<ReportScreen reportId="pp" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
-  openAllDetails();
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
   expect(screen.getByLabelText('График: давление')).toBeChecked();
   expect(screen.getByLabelText('График: сахар')).toBeChecked();
   expect(screen.getByLabelText('Норма на графиках')).toBeChecked();
@@ -436,8 +435,7 @@ it('print chart toggles remove charts and norm lines', async () => {
   await seedPrintable();
   render(<ReportScreen reportId="pp" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
-  openAllDetails();
-  fireEvent.click(await screen.findByRole('button', { name: 'Печать' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
   await screen.findByLabelText('График: давление');
   await screen.findByText('130/85');
   fireEvent.click(screen.getByLabelText('График: давление'));
@@ -461,4 +459,58 @@ it('saves personal targets via visible Мои нормы panel', async () => {
     expect((await db.reports.get('p1'))?.targets).toEqual({ sys: 120, dia: 80, pulse: undefined, sugar: undefined });
   });
   expect(screen.getByText(/ВД 120 · НД 80/)).toBeInTheDocument();
+});
+
+it('bottom sheet opens from PDF icon and closes via overlay click', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  expect(screen.getByText('Экспорт отчёта')).toBeInTheDocument();
+  fireEvent.click(document.querySelector('.bottom-sheet-overlay')!);
+  await waitFor(() => expect(screen.queryByText('Экспорт отчёта')).toBeNull());
+});
+
+it('bottom sheet closes via Закрыть button', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  expect(screen.getByText('Экспорт отчёта')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Закрыть'));
+  await waitFor(() => expect(screen.queryByText('Экспорт отчёта')).toBeNull());
+});
+
+it('bottom sheet Сбросить clears range', async () => {
+  await putReport({ id: 'p2', name: 'Р2',
+    fields: [{ id: 'd1', name: 'Дата и время', type: 'datetime', required: true, width: 30 }],
+    archived: false, createdAt: 1, updatedAt: 1 });
+  await putEntry({ id: 'e1', reportId: 'p2', values: { d1: '2026-08-23T19:00' }, createdAt: 1 });
+  render(<ReportScreen reportId="p2" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-08-22' } });
+  await waitFor(() => expect(screen.queryByText('23.08 19:00')).toBeNull());
+  fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+  expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
+});
+
+it('bottom sheet contains Сохранить PDF button', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  expect(screen.getByRole('button', { name: 'Сохранить PDF' })).toBeInTheDocument();
+});
+
+it('overflow menu no longer contains Печать or Экспорт PDF', async () => {
+  await seed();
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  const popover = document.querySelector('.overflow-menu__popover')!;
+  expect(popover.querySelector('button')).not.toBeNull();
+  expect(popover.textContent).not.toContain('Печать');
+  expect(popover.textContent).not.toContain('Экспорт PDF');
+  expect(popover.textContent).toContain('Синхронизация');
 });

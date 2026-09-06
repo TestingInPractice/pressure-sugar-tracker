@@ -200,7 +200,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   };
 
   const exportPdf = async () => {
-    closeMenu();
+    setPdfMsg('');
     try {
       const { buildReportPdf } = await import('../logic/pdf-export');
       const rangeLabel = range
@@ -213,17 +213,12 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
       });
       const safeName = report.name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
       const file = new File([blob], `${safeName}.pdf`, { type: 'application/pdf' });
-      if (navigator.canShare?.({ files: [file] })) {
+      try {
         await navigator.share({ files: [file], title: report.name });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${safeName}.pdf`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch {
+        window.print();
       }
-    } catch {
+    } catch (e) {
       setPdfMsg('Не удалось создать PDF');
     }
   };
@@ -292,12 +287,11 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
         ) : (
           <h2 className="report-nav__title">{report.name}</h2>
         )}
+        <button className="btn-icon" aria-label="Экспорт PDF" onClick={() => setShowRange(true)}>🖨</button>
         <details ref={menuRef} className="overflow-menu" onToggle={e => setMenuOpen(e.currentTarget.open)}>
           <summary aria-label="Дополнительные действия">⋯</summary>
           {menuOpen && <div className="overflow-menu__backdrop" onClick={closeMenu} />}
           <div className="overflow-menu__popover">
-            <button onClick={() => { closeMenu(); if (dtFieldId) setShowRange(v => !v); else window.print(); }}>Печать</button>
-            <button onClick={() => { void exportPdf(); }}>Экспорт PDF</button>
             <button onClick={() => { closeMenu(); void syncReport(); }}>Синхронизация</button>
             <button onClick={() => { closeMenu(); setShowReminder(v => !v); }}>Напоминание</button>
             <button aria-label="Переименовать отчёт"
@@ -357,33 +351,40 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
           {pdfMsg && <p className="hint no-print">{pdfMsg}</p>}
           {autoSyncHint && <p className="hint no-print">{autoSyncHint}</p>}
           {showRange && (
-            <form className="print-range no-print"
-                  onSubmit={e => { e.preventDefault(); window.print(); }}>
-              <div className="range-row">
-                <input type="date" aria-label="С" value={range?.from ?? ''}
-                       onChange={e => setRangePart('from', e.target.value)} />
-                <input type="date" aria-label="По" value={range?.to ?? ''}
-                       onChange={e => setRangePart('to', e.target.value)} />
-              </div>
-              {PRINT_METRICS.map(m => (
-                <label key={m.id} className="print-opt">
-                  <input type="checkbox" checked={printCharts[m.id]}
-                         disabled={!metricAvailable(report.fields, m.id)}
-                         onChange={() => setPrintCharts(prev => ({ ...prev, [m.id]: !prev[m.id] }))} />
-                  {m.label}
+            <div className="bottom-sheet-overlay no-print" onClick={() => setShowRange(false)}>
+              <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+                <div className="bottom-sheet__grabber" />
+                <div className="bottom-sheet__header">
+                  <span className="bottom-sheet__title">Экспорт отчёта</span>
+                  <button className="btn-icon" onClick={() => setShowRange(false)} aria-label="Закрыть">✕</button>
+                </div>
+                <div className="range-row">
+                  <input type="date" aria-label="С" value={range?.from ?? ''}
+                         onChange={e => setRangePart('from', e.target.value)} />
+                  <input type="date" aria-label="По" value={range?.to ?? ''}
+                         onChange={e => setRangePart('to', e.target.value)} />
+                </div>
+                {PRINT_METRICS.map(m => (
+                  <label key={m.id} className="print-opt">
+                    <input type="checkbox" checked={printCharts[m.id]}
+                           disabled={!metricAvailable(report.fields, m.id)}
+                           onChange={() => setPrintCharts(prev => ({ ...prev, [m.id]: !prev[m.id] }))} />
+                    {m.label}
+                  </label>
+                ))}
+                <label className="print-opt">
+                  <input type="checkbox" checked={printCharts.norms}
+                         onChange={() => setPrintCharts(prev => ({ ...prev, norms: !prev.norms }))} />
+                  Норма на графиках
                 </label>
-              ))}
-              <label className="print-opt">
-                <input type="checkbox" checked={printCharts.norms}
-                       onChange={() => setPrintCharts(prev => ({ ...prev, norms: !prev.norms }))} />
-                Норма на графиках
-              </label>
-              <div className="btn-row">
-                <button type="submit" className="primary">Печать</button>
-                <button type="button" onClick={() => setRange(null)}>Сбросить</button>
-                <button type="button" onClick={() => setShowRange(false)}>Закрыть</button>
+                <div className="btn-row">
+                  <button type="button" className="primary" onClick={() => { window.print(); }}>Печать</button>
+                  <button type="button" className="primary" onClick={() => void exportPdf()}>Сохранить PDF</button>
+                  <button type="button" onClick={() => { setRange(null); }}>Сбросить</button>
+                  <button type="button" onClick={() => setShowRange(false)}>Закрыть</button>
+                </div>
               </div>
-            </form>
+            </div>
           )}
           {showReminder && settings && (
             <ReminderPanel

@@ -210,6 +210,11 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
       const blob = buildReportPdf(report, visibleEntries, {
         rangeLabel,
         normsLabel: norms === 'Нормы не заданы' ? undefined : norms,
+        charts: printSeries.map(g => ({
+          title: g.label.replace('График: ', ''),
+          series: g.series,
+          targets: printCharts.norms ? buildMetricTargets(report.targets, g.metric) : [],
+        })),
       });
       const safeName = report.name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
       const file = new File([blob], `${safeName}.pdf`, { type: 'application/pdf' });

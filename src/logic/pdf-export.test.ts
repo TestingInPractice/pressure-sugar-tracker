@@ -47,3 +47,18 @@ it('omits hidden fields from the PDF table', () => {
   expect(visible.map(f => f.name)).toEqual(['Видимое']);
   expect(visible).not.toContainEqual(expect.objectContaining({ name: 'Скрытое поле' }));
 });
+
+it('includes charts in the PDF when provided', () => {
+  const bytesEmpty = buildReportPdfBytes(report, [entry]);
+  const bytesCharts = buildReportPdfBytes(report, [entry], {
+    charts: [{
+      title: 'Давление',
+      series: [{ id: 'sys', label: 'Верхнее', points: [
+        { date: 1, value: 130, color: 'yellow' },
+        { date: 2, value: 120, color: 'green' },
+      ] }],
+      targets: [{ id: 't', label: 'Норма', value: 120 }],
+    }],
+  });
+  expect(bytesCharts.byteLength).toBeGreaterThan(bytesEmpty.byteLength);
+});

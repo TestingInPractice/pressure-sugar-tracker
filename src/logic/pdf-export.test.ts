@@ -2,6 +2,9 @@ import { it, expect } from 'vitest';
 import { buildReportPdfBytes, buildReportPdf, pdfFields } from './pdf-export';
 import { createDefaultReport } from './report-config';
 import type { Field, BPValues } from '../types';
+import donateQrAsset from '../assets/donate-qr.png?inline';
+import { PNG } from 'pngjs';
+import jsQR from 'jsqr';
 
 const FIELDS: Field[] = [
   { id: 'num', name: '№', type: 'number', required: false, width: 10 },
@@ -61,4 +64,22 @@ it('includes charts in the PDF when provided', () => {
     }],
   });
   expect(bytesCharts.byteLength).toBeGreaterThan(bytesEmpty.byteLength);
+});
+
+it('does not regress PDF generation with a full page of entries (donate block forces new page)', () => {
+  const manyEntries = Array.from({ length: 60 }, (_, i) => ({
+    id: `e${i}`,
+    reportId: report.id,
+    createdAt: i,
+    values: { num: i + 1, dt: '2026-08-20T10:00', bp1: BP, s1: 5.5 },
+  }));
+  const bytes = buildReportPdfBytes(report, manyEntries);
+  expect(bytes.byteLength).toBeGreaterThan(1000);
+});
+
+it('donate QR asset decodes to the CloudTips URL', () => {
+  const base64 = donateQrAsset.split(',')[1];
+  const png = PNG.sync.read(Buffer.from(base64, 'base64'));
+  const code = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
+  expect(code?.data).toBe('https://pay.cloudtips.ru/p/866cf60d');
 });

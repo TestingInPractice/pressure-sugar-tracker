@@ -5,6 +5,8 @@ import { formatCell, formatBP } from './format';
 import type { ChartPointColor } from '../components/TrendChart';
 import regularFont from '../assets/fonts/PT_Sans-Web-Regular-subset.ttf?inline';
 import boldFont from '../assets/fonts/PT_Sans-Web-Bold-subset.ttf?inline';
+import donateQr from '../assets/donate-qr.png?inline';
+import { CLOUDTIPS_URL } from '../constants';
 
 const MARGIN = 36;
 
@@ -139,6 +141,30 @@ function drawPdfChart(
   }
 }
 
+function drawDonateBlock(doc: jsPDF, contentBottomY: number): void {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const qrSize = 90;
+  const captionDy = 12;
+  const urlDy = 10;
+  const shift = 8;
+  const blockH = captionDy + shift + qrSize + shift + urlDy;
+  if (contentBottomY + blockH > pageH - MARGIN) {
+    doc.addPage();
+  }
+  const x = (pageW - qrSize) / 2;
+  const qrY = pageH - MARGIN - qrSize;
+  doc.setFont('PTSans', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30);
+  doc.text('Поддержать проект', pageW / 2, qrY - captionDy, { align: 'center' });
+  doc.addImage(donateQr, 'PNG', x, qrY, qrSize, qrSize);
+  doc.setFont('PTSans', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100);
+  doc.text(CLOUDTIPS_URL, pageW / 2, qrY + qrSize + urlDy, { align: 'center' });
+}
+
 export function buildReportPdfBytes(report: Report, entries: Entry[], meta?: PdfMeta): ArrayBuffer {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   doc.addFileToVFS('PTSans-Regular.ttf', toBase64(regularFont));
@@ -194,6 +220,7 @@ export function buildReportPdfBytes(report: Report, entries: Entry[], meta?: Pdf
   });
 
   const charts = meta?.charts ?? [];
+  let contentBottomY: number;
   if (charts.length > 0) {
     const pageH = doc.internal.pageSize.getHeight();
     const chartH = 110;
@@ -206,7 +233,12 @@ export function buildReportPdfBytes(report: Report, entries: Entry[], meta?: Pdf
       drawPdfChart(doc, chart, MARGIN, cy, avail, chartH);
       cy += chartH + 14;
     }
+    contentBottomY = cy;
+  } else {
+    contentBottomY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
   }
+
+  drawDonateBlock(doc, contentBottomY);
 
   return doc.output('arraybuffer') as ArrayBuffer;
 }

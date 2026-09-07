@@ -54,7 +54,7 @@ it('heart icon opens CloudTips in a new tab', async () => {
   const heart = await screen.findByRole('button', { name: 'Поддержать проект' });
   fireEvent.click(heart);
   expect(openSpy).toHaveBeenCalledTimes(1);
-  expect(openSpy.mock.calls[0][0]).toBe('https://pay.cloudtips.ru/p/e21e29f5');
+  expect(openSpy.mock.calls[0][0]).toBe('https://pay.cloudtips.ru/p/866cf60d');
   expect(openSpy.mock.calls[0][1]).toBe('_blank');
   vi.unstubAllGlobals();
 });

@@ -124,17 +124,9 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
     if (!quickAddReport) return undefined;
     const dtFieldId = datetimeFieldId(quickAddReport.fields);
     const numId = numberingFieldId(quickAddReport.fields);
-    const last = quickAddEntries[0];
     const initial: Entry['values'] = {};
     if (dtFieldId) initial[dtFieldId] = nowLocalInput();
     if (numId) initial[numId] = nextEntryNumber(quickAddEntries, numId) ?? 1;
-    // Prefill last values from most recent entry (except dt/num)
-    if (last) {
-      for (const f of quickAddReport.fields) {
-        if (f.id === dtFieldId || f.id === numId) continue;
-        if (last.values[f.id] !== undefined) initial[f.id] = last.values[f.id];
-      }
-    }
     return initial;
   }, [quickAddReport, quickAddEntries]);
 

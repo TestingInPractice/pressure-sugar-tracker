@@ -122,8 +122,10 @@
 
 html, body {
   margin: 0;
-  /* Контент никогда не уходит вправо: только перенос строк вниз */
-  overflow-x: hidden;
+  /* Жёсткая фиксация: документ не скроллится — нет iOS rubber-band влево-вправо и вверх-вниз */
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   /* Match theme_color for iOS 26 standalone chrome; falls back to --bg in browser */
   background: #eef2f6;
   color: var(--text);
@@ -148,6 +150,10 @@ html, body {
 .app {
   max-width: 720px;
   margin: 0 auto;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
@@ -1894,6 +1900,8 @@ p.error {
    ============================================================ */
 
 @media print {
+  /* Фиксация экрана не должна влиять на печать: контент печатается целиком */
+  html, body { height: auto; overflow: visible; overscroll-behavior: auto; }
   body { margin: 0; }
   .app-header, .tabbar, .no-print, .entries-cards { display: none !important; }
   .print-title { display: block !important; font-size: 18pt; margin-bottom: 8pt; }
@@ -1909,7 +1917,7 @@ p.error {
   .print-root { zoom: 0.8; }
   /* экранные украшения карточек выключаются на бумаге */
   body { background: #fff; color: #000; }
-  .app { padding-bottom: 0; }
+  .app { height: auto; overflow: visible; padding-bottom: 0; }
   .screen { display: block; padding: 0; }
   .entries-scroll { overflow: visible; border: none; border-radius: 0; box-shadow: none; background: none; }
   .entries-table th { background: none; }

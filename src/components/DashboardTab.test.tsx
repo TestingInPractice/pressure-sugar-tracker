@@ -31,16 +31,16 @@ it('shows empty state with single CTA when no reports', async () => {
   expect(onCreate).toHaveBeenCalledTimes(1);
 });
 
-it('quick-add opens bottom sheet with prefilled datetime and last values', async () => {
+it('quick-add opens bottom sheet with prefilled datetime but empty values', async () => {
   await putReport({ id: 'r1', name: 'Давление', fields: [bpField, sugarField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
   await putEntry({ id: 'e1', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 }, s1: 5.5, d1: '2026-08-20T10:00' }, createdAt: 1 });
   render(<DashboardTab onCreate={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
-  // Bottom sheet should be visible with prefilled values
+  // Bottom sheet should be visible with datetime prefilled, but ВД/НД/П/Сахар empty
   expect(await screen.findByText('Давление', { selector: '.bottom-sheet__title' })).toBeInTheDocument();
-  expect(screen.getByLabelText(/^ВД/)).toHaveValue('120');
-  expect(screen.getByLabelText(/^НД/)).toHaveValue('80');
-  expect(screen.getByLabelText(/Сахар/)).toHaveValue('5.5');
+  expect(screen.getByLabelText(/^ВД/)).toHaveValue('');
+  expect(screen.getByLabelText(/^НД/)).toHaveValue('');
+  expect(screen.getByLabelText(/Сахар/)).toHaveValue('');
   const dtVal = (screen.getByLabelText(/Дата и время/) as HTMLInputElement).value;
   expect(dtVal).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 });

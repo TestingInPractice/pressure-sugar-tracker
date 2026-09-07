@@ -46,6 +46,19 @@ it('PDF icon opens bottom sheet; Печать calls window.print()', async () =>
   vi.unstubAllGlobals();
 });
 
+it('heart icon opens CloudTips in a new tab', async () => {
+  await seed();
+  const openSpy = vi.fn();
+  vi.stubGlobal('open', openSpy);
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  const heart = await screen.findByRole('button', { name: 'Поддержать проект' });
+  fireEvent.click(heart);
+  expect(openSpy).toHaveBeenCalledTimes(1);
+  expect(openSpy.mock.calls[0][0]).toBe('https://pay.cloudtips.ru/p/e21e29f5');
+  expect(openSpy.mock.calls[0][1]).toBe('_blank');
+  vi.unstubAllGlobals();
+});
+
 it('has hidden .print-title heading and .no-print on nav bar and add button', async () => {
   await seed();
   const { container } = render(<ReportScreen reportId="p1" onBack={() => {}} />);

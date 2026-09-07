@@ -10,6 +10,7 @@ import { getSyncState, putSyncState, getSyncFileHandle } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
 import { syncAfterEntry } from '../logic/entry-sync';
 import { useSettings } from '../hooks/useSettings';
+import { CLOUDTIPS_URL } from '../constants';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
 import ReminderPanel from './ReminderPanel';
@@ -293,6 +294,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
           <h2 className="report-nav__title">{report.name}</h2>
         )}
         <button className="btn-icon" aria-label="Экспорт PDF" onClick={() => setShowRange(true)}>🖨</button>
+        <button className="btn-icon" aria-label="Поддержать проект" onClick={() => window.open(CLOUDTIPS_URL, '_blank', 'noopener')}>♥️</button>
         <details ref={menuRef} className="overflow-menu" onToggle={e => setMenuOpen(e.currentTarget.open)}>
           <summary aria-label="Дополнительные действия">⋯</summary>
           {menuOpen && <div className="overflow-menu__backdrop" onClick={closeMenu} />}

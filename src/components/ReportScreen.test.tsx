@@ -508,12 +508,87 @@ it('bottom sheet Сбросить clears range', async () => {
   expect(screen.getByText('23.08 19:00')).toBeInTheDocument();
 });
 
-it('bottom sheet contains Сохранить PDF button', async () => {
+it('Сохранить PDF: share вызван с PDF-файлом, ошибок нет', async () => {
   await seed();
+  const shareSpy = vi.fn().mockResolvedValue(undefined);
+  const canShareSpy = vi.fn().mockReturnValue(true);
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: canShareSpy });
+  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
   render(<ReportScreen reportId="p1" onBack={() => {}} />);
   await screen.findByRole('button', { name: '+ Запись' });
   fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
-  expect(screen.getByRole('button', { name: 'Сохранить PDF' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить PDF' }));
+  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+  const arg = shareSpy.mock.calls[0][0];
+  expect(arg.title).toBe('Отчёт АД');
+  expect(arg.files).toHaveLength(1);
+  expect(arg.files[0]).toBeInstanceOf(File);
+  expect(arg.files[0].type).toBe('application/pdf');
+  expect(screen.queryByText('Не удалось создать PDF')).toBeNull();
+  delete (navigator as { canShare?: unknown }).canShare;
+  delete (navigator as { share?: unknown }).share;
+});
+
+it('Сохранить PDF: AbortError (закрытый шит) — не ошибка, fallback не срабатывает', async () => {
+  await seed();
+  const shareSpy = vi.fn().mockRejectedValue(new DOMException('отменено', 'AbortError'));
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(true) });
+  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
+  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить PDF' }));
+  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+  expect(clickSpy).not.toHaveBeenCalled();
+  expect(screen.queryByText('Не удалось создать PDF')).toBeNull();
+  delete (navigator as { canShare?: unknown }).canShare;
+  delete (navigator as { share?: unknown }).share;
+});
+
+it('Сохранить PDF: падение share — fallback blob-скачивание', async () => {
+  await seed();
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+  const shareSpy = vi.fn().mockRejectedValue(new Error('share сломан'));
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(true) });
+  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
+  const clicked: HTMLAnchorElement[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(function (this: HTMLAnchorElement) { clicked.push(this); });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить PDF' }));
+  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(clicked.length).toBe(1));
+  expect(clicked[0].download).toBe('Отчёт АД.pdf');
+  expect(clicked[0].href.startsWith('blob:')).toBe(true);
+  expect(screen.queryByText('Не удалось создать PDF')).toBeNull();
+  vi.unstubAllGlobals();
+  delete (navigator as { canShare?: unknown }).canShare;
+  delete (navigator as { share?: unknown }).share;
+});
+
+it('Сохранить PDF: canShare=false — сразу fallback blob-скачивание', async () => {
+  await seed();
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(false) });
+  const shareSpy = vi.fn();
+  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
+  const clicked: HTMLAnchorElement[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(function (this: HTMLAnchorElement) { clicked.push(this); });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить PDF' }));
+  await waitFor(() => expect(clicked.length).toBe(1));
+  expect(shareSpy).not.toHaveBeenCalled();
+  expect(clicked[0].download).toBe('Отчёт АД.pdf');
+  expect(clicked[0].href.startsWith('blob:')).toBe(true);
+  vi.unstubAllGlobals();
+  delete (navigator as { canShare?: unknown }).canShare;
+  delete (navigator as { share?: unknown }).share;
 });
 
 it('overflow menu no longer contains Печать or Экспорт PDF', async () => {

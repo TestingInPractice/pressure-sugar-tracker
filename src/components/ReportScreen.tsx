@@ -11,6 +11,7 @@ import { saveSyncFile } from '../logic/sync-file';
 import { syncAfterEntry } from '../logic/entry-sync';
 import { useSettings } from '../hooks/useSettings';
 import { CLOUDTIPS_URL } from '../constants';
+import { buildReportPdf } from '../logic/pdf-export';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
 import ReminderPanel from './ReminderPanel';
@@ -203,7 +204,6 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const exportPdf = async () => {
     setPdfMsg('');
     try {
-      const { buildReportPdf } = await import('../logic/pdf-export');
       const rangeLabel = range
         ? `Период: ${fmtRuDate(range.from) || '…'} — ${fmtRuDate(range.to) || '…'}`
         : undefined;
@@ -219,11 +219,27 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
       });
       const safeName = report.name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
       const file = new File([blob], `${safeName}.pdf`, { type: 'application/pdf' });
-      try {
-        await navigator.share({ files: [file], title: report.name });
-      } catch {
-        window.print();
+      // На iOS share требует живого user gesture: никаких await до вызова
+      const canShare = typeof navigator.canShare === 'function' && typeof navigator.share === 'function'
+        && navigator.canShare({ files: [file] });
+      if (canShare) {
+        try {
+          await navigator.share({ files: [file], title: report.name });
+          return;
+        } catch (err) {
+          // Пользователь закрыл шит — не ошибка
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+        }
       }
+      // Fallback: скачивание через blob-ссылку
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = safeName + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       setPdfMsg('Не удалось создать PDF');
     }

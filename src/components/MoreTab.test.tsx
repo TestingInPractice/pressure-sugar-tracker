@@ -50,3 +50,16 @@ it('shows native alarm setup instructions', () => {
   expect(screen.getByText(/Как создать команду «Будильник»/)).toBeInTheDocument();
   expect(screen.getByText(/Поставить будильник в Часах/)).toBeInTheDocument();
 });
+
+it('donate block mentions supporting the project and opens CloudTips', () => {
+  const openSpy = vi.fn();
+  vi.stubGlobal('open', openSpy);
+  render(<MoreTab onDataChanged={() => {}} />);
+  expect(screen.getByText('Поддержать проект')).toBeInTheDocument();
+  expect(screen.getByText(/разрабатывать новые приложения.*виртуальные машины/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '♥️ Поддержать' }));
+  expect(openSpy).toHaveBeenCalledTimes(1);
+  expect(openSpy.mock.calls[0][0]).toBe('https://pay.cloudtips.ru/p/866cf60d');
+  expect(openSpy.mock.calls[0][1]).toBe('_blank');
+  vi.unstubAllGlobals();
+});

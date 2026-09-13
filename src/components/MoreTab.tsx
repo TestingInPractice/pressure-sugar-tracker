@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { getAllData, replaceEverything } from '../db/db';
 import { buildExportJson, parseImport, backupFilename, BackupError } from '../logic/backup';
+import { CLOUDTIPS_URL } from '../constants';
 import ShortcutHelp from './ShortcutHelp';
 
 interface Props { onDataChanged: () => void }
@@ -60,6 +61,16 @@ export default function MoreTab({ onDataChanged }: Props) {
           будильника, даже если приложение закрыто.
         </p>
         <ShortcutHelp />
+      </section>
+      <section className="donate">
+        <h2>Поддержать проект</h2>
+        <p className="hint">
+          Поддержка позволит нам разрабатывать новые приложения и оплачивать
+          виртуальные машины для текущих — приложения останутся бесплатными.
+        </p>
+        <button className="primary" onClick={() => window.open(CLOUDTIPS_URL, '_blank', 'noopener')}>
+          ♥️ Поддержать
+        </button>
       </section>
     </div>
   );

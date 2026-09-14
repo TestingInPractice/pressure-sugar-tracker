@@ -8,6 +8,7 @@ import { onEntryRecorded, nowLocalInput } from '../logic/reminders';
 import { classifySync, plural, syncFilename } from '../logic/sync';
 import { getSyncState, putSyncState, getSyncFileHandle } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
+import { buildReportExportJson, reportExportFilename, shareReportFile } from '../logic/report-export';
 import { syncAfterEntry } from '../logic/entry-sync';
 import { useSettings } from '../hooks/useSettings';
 import { CLOUDTIPS_URL } from '../constants';
@@ -251,6 +252,14 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
     onBack();
   };
 
+  const shareReport = async () => {
+    const currentEntries = await listEntries(reportId);
+    const json = buildReportExportJson(report, currentEntries);
+    const saved = await shareReportFile(json, reportExportFilename(report.name), `Отчёт «${report.name}» — Трекер давления и сахара`);
+    if (saved.kind === 'shared') setSyncMsg('Отчёт отправлен');
+    else if (saved.kind === 'created') setSyncMsg('Файл отчёта сохранён');
+  };
+
   const syncReport = async () => {
     try {
       const currentEntries = await listEntries(reportId);
@@ -316,6 +325,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
           {menuOpen && <div className="overflow-menu__backdrop" onClick={closeMenu} />}
           <div className="overflow-menu__popover">
             <button onClick={() => { closeMenu(); void syncReport(); }}>Синхронизация</button>
+            <button onClick={() => { closeMenu(); void shareReport(); }}>Поделиться отчётом</button>
             <button onClick={() => { closeMenu(); setShowReminder(v => !v); }}>Напоминание</button>
             <button aria-label="Переименовать отчёт"
                     onClick={() => { closeMenu(); setNameDraft(report.name); setRenaming(true); }}>Переименовать</button>

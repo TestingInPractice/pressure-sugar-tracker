@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { makeDefaultFields, createDefaultReport, stripRemovedFieldValues, assertFieldsLimit } from './report-config';
+import { makeDefaultFields, createDefaultReport, stripRemovedFieldValues, assertFieldsLimit, genId } from './report-config';
 
 it('default template matches spec', () => {
   const fields = makeDefaultFields();
@@ -31,4 +31,13 @@ it('strips values of removed fields', () => {
 it('enforces field limit', () => {
   expect(() => assertFieldsLimit(11)).toThrow(/10/);
   expect(() => assertFieldsLimit(10)).not.toThrow();
+});
+
+it('genId emits unique UUID-based ids across prefixes and repetitions', () => {
+  const ids = new Set<string>();
+  for (let i = 0; i < 5000; i += 1) {
+    ids.add(genId(i % 2 === 0 ? 'rep' : 'ent'));
+  }
+  expect(ids.size).toBe(5000);
+  expect([...ids][0]).toMatch(/^(rep|ent)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });

@@ -49,32 +49,8 @@ it('does not show gate warning when master is ON', () => {
   expect(screen.queryByText(/Рубильник напоминаний выключен/)).not.toBeInTheDocument();
 });
 
-it('opens a Shortcuts bridge link for each configured time', () => {
-  const hrefs: string[] = [];
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
-    this: HTMLAnchorElement,
-  ) {
-    hrefs.push(this.href);
-  });
-  render(
-    <ReminderPanel
-      report={baseReport({ enabled: true, times: ['07:30', '20:00'] })}
-      masterOn={true}
-      onChanged={() => {}}
-    />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /Поставить будильник в Часах/ }));
-  expect(hrefs).toHaveLength(2);
-  expect(hrefs[0].startsWith('shortcuts://run-shortcut?name=')).toBe(true);
-  expect(hrefs[0]).toContain(encodeURIComponent('Будильник'));
-  expect(hrefs[0].endsWith('text=07%3A30')).toBe(true);
-  expect(hrefs[1].endsWith('text=20%3A00')).toBe(true);
-  clickSpy.mockRestore();
-});
-
-it('alarm and calendar buttons are disabled while no time is set', () => {
+it('calendar button is disabled while no time is set', () => {
   render(<ReminderPanel report={baseReport({ enabled: true, times: [] })} masterOn={true} onChanged={() => {}} />);
-  expect(screen.getByRole('button', { name: /Поставить будильник в Часах/ })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Добавить в Календарь/ })).toBeDisabled();
 });
 
@@ -88,7 +64,8 @@ it('adds a new time row via the add button', () => {
   expect(after).toBe(before + 1);
 });
 
-it('renders one-time setup recipe in collapsible help', () => {
+it('suggests setting the alarm manually in the Clock app', () => {
   render(<ReminderPanel report={baseReport({ enabled: true, times: ['08:00'] })} masterOn={true} onChanged={() => {}} />);
-  expect(screen.getByText(/Как создать команду/)).toBeInTheDocument();
+  expect(screen.getByText(/установите его вручную в «Часах»/)).toBeInTheDocument();
+  expect(screen.getByText(/подпишите «Давление»/)).toBeInTheDocument();
 });

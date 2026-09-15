@@ -3,8 +3,6 @@ import type { Report, Reminder } from '../types';
 import { putReport } from '../db/db';
 import { buildIcs, icsFilename } from '../logic/ics';
 import { normalizeReminder, onReconfigured } from '../logic/reminders';
-import { buildShortcutUrls } from '../logic/shortcuts';
-import ShortcutHelp from './ShortcutHelp';
 
 interface Props { report: Report; masterOn: boolean; onChanged: () => void; onEnableMaster?: () => void }
 
@@ -42,17 +40,6 @@ export default function ReminderPanel({ report, masterOn, onChanged, onEnableMas
     const next = times.filter((_, idx) => idx !== i);
     setTimes(next);
     if (enabled) void persist(true, next);
-  };
-
-  const openAlarms = () => {
-    const urls = buildShortcutUrls(validTimes);
-    urls.forEach(url => {
-      const a = document.createElement('a');
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
   };
 
   const requestNotificationPermission = async () => {
@@ -112,17 +99,13 @@ export default function ReminderPanel({ report, masterOn, onChanged, onEnableMas
         <button type="button" onClick={addTime}>+ Добавить время</button>
       </div>
       <div className="reminder-actions">
-        <button onClick={openAlarms} disabled={!enabled || !masterOn || validTimes.length === 0}>
-          ⏰ Поставить будильник в Часах ({validTimes.length})
-        </button>
         <button onClick={downloadIcs} disabled={!enabled || !masterOn || validTimes.length === 0}>
           Добавить в Календарь (.ics)
         </button>
       </div>
-      <ShortcutHelp />
       <p className="hint">
-        Будильник ставится на каждое время отдельно. Повтор «каждый день» включается в самой
-        команде «Будильник». Если времён несколько — команда запустится несколько раз.
+        Чтобы получить звонок как от обычного будильника, установите его вручную в «Часах»
+        на нужное время, подпишите «Давление» и не удаляйте его.
       </p>
     </section>
   );

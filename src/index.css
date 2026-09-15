@@ -1137,6 +1137,35 @@ p.error {
   padding: 8px 10px;
 }
 
+/* карточка «Поддержать проект» */
+.donate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
+}
+
+.donate h2 {
+  font-size: 17px;
+  margin: 0;
+}
+
+.donate .hint {
+  background: transparent;
+  border-left: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.donate .primary {
+  margin-top: 2px;
+}
+
 /* ============================================================
    Вкладка «Ещё»
    ============================================================ */

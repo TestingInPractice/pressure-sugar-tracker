@@ -1,10 +1,8 @@
 import type { Field, Report, Entry } from '../types';
 import { MAX_FIELDS, DEFAULT_FIELD_WIDTH } from '../constants';
 
-let seq = 0;
 export function genId(prefix: string): string {
-  seq += 1;
-  return `${prefix}-${Date.now().toString(36)}-${seq}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 export const BP_PARTS = [

@@ -32,6 +32,26 @@ beforeEach(async () => {
 const seed = () =>
   putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1 });
 
+it('Поделиться отчётом downloads a report file and shows confirmation', async () => {
+  await seed();
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+  let clicked = '';
+  const origCreate = document.createElement.bind(document);
+  const createSpy = vi.spyOn(document, 'createElement').mockImplementation(tag => {
+    const el = origCreate(tag);
+    if (tag === 'a') el.addEventListener('click', () => { clicked = 'dl'; });
+    return el;
+  });
+  render(<ReportScreen reportId="p1" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  openAllDetails();
+  fireEvent.click(screen.getByRole('button', { name: 'Поделиться отчётом' }));
+  await waitFor(() => expect(clicked).toBe('dl'));
+  expect(screen.getByText('Файл отчёта сохранён')).toBeInTheDocument();
+  createSpy.mockRestore();
+  vi.unstubAllGlobals();
+});
+
 it('PDF icon opens bottom sheet; Печать calls window.print()', async () => {
   await seed();
   const printSpy = vi.fn();

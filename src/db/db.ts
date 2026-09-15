@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Report, Entry, Settings, Snapshot, SyncState } from '../types';
+import { genId } from '../logic/report-config';
 
 interface SettingsRow extends Settings { key: string }
 
@@ -93,6 +94,20 @@ export async function replaceEverything(snap: Snapshot): Promise<void> {
     await db.settings.put({ key: 'app', ...snap.settings });
     await db.reports.bulkPut(snap.reports);
     await db.entries.bulkPut(snap.entries);
+  });
+}
+
+export async function importReportData(report: Report, entries: Entry[], asCopy: boolean): Promise<void> {
+  await db.transaction('rw', db.reports, db.entries, async () => {
+    if (asCopy) {
+      const copy: Report = { ...report, id: genId('rep'), name: `${report.name} (копия)` };
+      await db.reports.put(copy);
+      await db.entries.bulkPut(entries.map(e => ({ ...e, id: genId('ent'), reportId: copy.id })));
+    } else {
+      await db.reports.put(report);
+      await db.entries.where('reportId').equals(report.id).delete();
+      if (entries.length > 0) await db.entries.bulkPut(entries);
+    }
   });
 }
 

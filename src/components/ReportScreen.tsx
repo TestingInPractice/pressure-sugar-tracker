@@ -305,7 +305,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
 
   return (
     <div className="screen">
-      <div className="report-nav no-print">
+      <div className={'report-nav no-print' + (renaming ? ' report-nav--renaming' : '')}>
         <button className="btn-back" onClick={onBack}>← Назад</button>
         {renaming ? (
           <form className="rename-row"

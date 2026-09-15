@@ -779,6 +779,7 @@ button:disabled {
 }
 
 .report-nav .rename-row {
+  display: flex;
   flex: 1;
   min-width: 0;
   flex-direction: row;
@@ -796,6 +797,12 @@ button:disabled {
   padding: 8px 14px;
 }
 
+/* Во время переименования скрываем иконки, чтобы полю хватало ширины */
+.report-nav--renaming .btn-icon,
+.report-nav--renaming .overflow-menu {
+  display: none;
+}
+
 .range-row {
   display: flex;
   gap: 8px;
@@ -804,16 +811,35 @@ button:disabled {
 .range-row input {
   flex: 1;
   min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px; /* 16px+ — чтобы iOS не зумил при фокусе */
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  box-sizing: border-box;
 }
 
 .btn-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .btn-row button {
   flex: 1;
   min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .bottom-sheet .btn-row button {
+    flex: 1 1 calc(50% - 4px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 /* ============================================================

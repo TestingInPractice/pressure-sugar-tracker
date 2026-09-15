@@ -37,6 +37,8 @@ export type BucketMode = 'day' | 'week';
 const CHART_W = 340;
 const CHART_H = 140;
 const PAD = { top: 10, right: 10, bottom: 24, left: 36 };
+const TIP_W = 140;
+const TIP_H = 34;
 
 /** При таком количестве точек (и меньше) агрегация не нужна — каждая точка = измерение. */
 export const MAX_UNBUCKETED_POINTS = 60;
@@ -312,11 +314,14 @@ export default function TrendChart({
   const accentCol = printMode ? '#0e7490' : 'var(--accent)';
   const accentSoftCol = printMode ? 'rgba(14, 116, 144, 0.09)' : 'var(--accent-soft)';
   const borderCol = printMode ? '#dde5ec' : 'var(--border)';
+  const textCol = printMode ? '#1f2937' : 'var(--text)';
   const textMutedCol = printMode ? '#5c6f81' : 'var(--text-muted)';
+  const tooltipBg = printMode ? '#ffffff' : 'var(--surface)';
   const pointCol = (c: ChartPointColor) => (printMode ? PRINT_COLOR_MAP[c] : COLOR_MAP[c]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerW, setContainerW] = useState(0);
+  const [selected, setSelected] = useState<{ seriesId: string; index: number } | null>(null);
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -349,12 +354,12 @@ export default function TrendChart({
   );
 
   const cooked: ChartSeries[] = useMemo(
-    () => rawSeries.map(s => ({
-      ...s,
-      points: noBucket || s.points.length <= MAX_UNBUCKETED_POINTS
+    () => rawSeries.map(s => {
+      const pts = noBucket || s.points.length <= MAX_UNBUCKETED_POINTS
         ? s.points
-        : bucketPoints(s.points, bucket),
-    })),
+        : bucketPoints(s.points, bucket);
+      return { ...s, points: [...pts].sort((a, b) => a.date - b.date) };
+    }),
     [rawSeries, bucket, noBucket],
   );
   const visible = useMemo(() => cooked.filter(s => s.points.length > 0), [cooked]);
@@ -438,6 +443,29 @@ export default function TrendChart({
 
   const showLegend = visible.length > 1 || (visible[0]?.label ?? '') !== '';
 
+  const tip = useMemo(() => {
+    if (!selected) return null;
+    const s = visible.find(v => v.id === selected.seriesId);
+    const p = s?.points[selected.index];
+    if (!s || !p) return null;
+    const cx = xPos(selected.index);
+    const cy = yScale(p.value);
+    const anchor = Math.max(
+      Math.min(inner.x + TIP_W / 2, inner.x + inner.w - TIP_W / 2),
+      Math.min(inner.x + inner.w - TIP_W / 2, cx),
+    );
+    const tx = anchor - TIP_W / 2;
+    let ty = cy - TIP_H - 10;
+    if (ty < inner.y) ty = cy + 10;
+    return {
+      tx, ty, cx, cy,
+      value: s.label ? `${s.label}: ${p.value}` : String(p.value),
+      date: new Date(p.date).toLocaleString('ru-RU', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      }),
+    };
+  }, [selected, visible, xPos, yScale, inner]);
+
   if (visible.length === 0) {
     return (
       <div className="trend-chart trend-chart--empty">
@@ -472,7 +500,8 @@ export default function TrendChart({
       <div className="trend-chart__scroll" ref={scrollRef}>
       <svg viewBox={`0 0 ${svgWidth} ${height}`} width="100%"
            style={containerW > 0 && contentW > containerW ? { minWidth: contentW } : undefined}
-           role="img" aria-label="График показателей">
+           role="img" aria-label="График показателей"
+           onClick={() => setSelected(null)}>
         {/* Target range band */}
         {bandRect && (
           <rect x={bandRect.x} y={bandRect.y} width={bandRect.width} height={bandRect.height}
@@ -504,10 +533,30 @@ export default function TrendChart({
         {/* Points */}
         {visible.map(s => s.points.map((p, i) => (
           <circle key={`${s.id}-${i}`} cx={xPos(i)} cy={yScale(p.value)} r="6"
+                  className="trend-chart__point"
                   fill={s.hollow ? surfaceCol : pointCol(p.color)}
                   stroke={s.hollow ? pointCol(p.color) : surfaceCol}
-                  strokeWidth={s.hollow ? 3 : 2} />
+                  strokeWidth={s.hollow ? 3 : 2}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setSelected(cur =>
+                      cur && cur.seriesId === s.id && cur.index === i ? null : { seriesId: s.id, index: i },
+                    );
+                  }} />
         )))}
+        {tip && (
+          <g className="trend-chart__tip" pointerEvents="none">
+            <rect x={tip.tx} y={tip.ty} width={TIP_W} height={TIP_H}
+                  rx="4" fill={tooltipBg} stroke={borderCol} strokeWidth="1" />
+            <text x={tip.tx + 8} y={tip.ty + 14} fontSize="11" fontWeight="600" fill={textCol}>
+              {tip.value}
+            </text>
+            <text x={tip.tx + 8} y={tip.ty + 27} fontSize="10" fill={textMutedCol}>
+              {tip.date}
+            </text>
+            <ellipse cx={tip.cx} cy={tip.cy} rx="9" ry="9" fill="none" stroke={accentCol} strokeWidth="1.5" />
+          </g>
+        )}
       </svg>
       </div>
     </div>

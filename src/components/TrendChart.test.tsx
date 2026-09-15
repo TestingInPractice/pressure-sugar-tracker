@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import TrendChart, {
   bucketPoints, autoBucket, buildChartPoints, takeLast, MAX_UNBUCKETED_POINTS,
   buildPressureSeries, buildPulseSeries, findBPField, findSugarField, findPulseField,
@@ -274,5 +274,52 @@ describe('metric builders', () => {
     expect(texts.some(t => t?.includes('20.08'))).toBe(false);
     const xs = Array.from(container.querySelectorAll('circle')).map(c => Number(c.getAttribute('cx')));
     expect(new Set(xs).size).toBe(3);
+  });
+
+  it('orders points chronologically when input arrives newest-first (All period)', () => {
+    const series = [{
+      id: 'sys', label: 'Верхнее',
+      points: [
+        { date: new Date('2026-08-22T10:00').getTime(), value: 30, color: 'green' as const },
+        { date: new Date('2026-08-21T10:00').getTime(), value: 20, color: 'green' as const },
+        { date: new Date('2026-08-20T10:00').getTime(), value: 10, color: 'green' as const },
+      ],
+    }];
+    const { container } = render(<TrendChart series={series} noBucket />);
+    const circles = Array.from(container.querySelectorAll('circle'));
+    expect(circles).toHaveLength(3);
+    const cx = circles.map(c => Number(c.getAttribute('cx')));
+    const cy = circles.map(c => Number(c.getAttribute('cy')));
+    const oldestIndex = cx.indexOf(Math.min(...cx));
+    const lowestValueIndex = cy.indexOf(Math.max(...cy));
+    expect(oldestIndex).toBe(lowestValueIndex);
+  });
+
+  it('shows value and measurement date when a point is clicked', () => {
+    const entries: Entry[] = [
+      { id: 'e1', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 }, d1: '2026-08-20T10:00' }, createdAt: 1 },
+    ];
+    const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
+    const { container } = render(
+      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} noBucket />
+    );
+    fireEvent.click(container.querySelector('circle')!);
+    expect(screen.getByText('Верхнее: 120')).toBeInTheDocument();
+    expect(screen.getByText(/20\.08\.2026/)).toBeInTheDocument();
+  });
+
+  it('hides the point tooltip when the same point is clicked again', () => {
+    const entries: Entry[] = [
+      { id: 'e1', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 }, d1: '2026-08-20T10:00' }, createdAt: 1 },
+    ];
+    const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
+    const { container } = render(
+      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} noBucket />
+    );
+    const circle = container.querySelector('circle')!;
+    fireEvent.click(circle);
+    expect(screen.getByText('Верхнее: 120')).toBeInTheDocument();
+    fireEvent.click(circle);
+    expect(screen.queryByText('Верхнее: 120')).toBeNull();
   });
 });

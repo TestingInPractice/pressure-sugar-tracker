@@ -1561,6 +1561,14 @@ p.error {
   display: block;
 }
 
+.trend-chart__point {
+  cursor: pointer;
+}
+
+.trend-chart__point:hover {
+  filter: brightness(0.9);
+}
+
 .trend-chart--empty {
   display: flex;
   align-items: center;

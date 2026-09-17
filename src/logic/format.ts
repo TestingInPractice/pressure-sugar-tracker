@@ -5,9 +5,9 @@ const DT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
 export function formatBP(v: BPValues | undefined, parts: Field['parts']): string {
   if (!v) return '';
   const order = parts && parts.length > 0 ? parts : [
-    { id: 'systolic', label: 'ВД' },
-    { id: 'diastolic', label: 'НД' },
-    { id: 'pulse', label: 'П' },
+    { id: 'systolic', label: 'САД' },
+    { id: 'diastolic', label: 'ДАД' },
+    { id: 'pulse', label: 'Пульс' },
   ];
   const vals = order
     .map(p => (v as Record<string, unknown>)[p.id])

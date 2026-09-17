@@ -1,9 +1,11 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { Fragment, useRef, useEffect, useCallback, useState } from 'react';
 import type { Report, Entry, BPValues } from '../types';
 import { formatCell, formatBP } from '../logic/format';
 import { numberingFieldId } from '../logic/entry-number';
 import { classifyBP, classifySugar, isBPFieldName, isSugarField } from '../logic/classification';
 import type { StatusColor } from '../logic/classification';
+import { computeSrad, classifySrad, SRAD_CATEGORY_LABEL, SRAD_CATEGORY_COLOR } from '../logic/srad';
+import type { SradCategory } from '../logic/srad';
 import { datetimeFieldId } from '../logic/print-filter';
 
 const COLOR_CLASS: Record<StatusColor, string> = {
@@ -45,6 +47,14 @@ function extractHighlights(entry: Entry, fields: Report['fields']): string[] {
   return highlights;
 }
 
+function sradInfo(entry: Entry, bpField: Report['fields'][number]): { map: number; cat: SradCategory } | undefined {
+  const bp = entry.values[bpField.id] as BPValues | undefined;
+  const map = computeSrad(bp);
+  const cat = classifySrad(map);
+  if (map === undefined || cat === undefined) return undefined;
+  return { map, cat };
+}
+
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -70,6 +80,8 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
   const total = fields.reduce((s, f) => s + Math.max(1, f.width ?? 1), 0);
   const numId = numberingFieldId(report.fields);
   const dtId = datetimeFieldId(report.fields);
+  const firstBpIndex = fields.findIndex(f => f.type === 'bp' || isBPFieldName(f.name));
+  const hasBP = firstBpIndex >= 0;
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -95,34 +107,51 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
     <table className="entries-table">
     <thead>
       <tr>
-        {fields.map(f => (
-          <th key={f.id} className={f.id === numId ? 'col-number' : undefined}
-              style={{ width: `${(Math.max(1, f.width ?? 1) / total) * 100}%` }}>
-            {f.name}{f.unit ? `, ${f.unit}` : ''}
-            {f.required ? ' *' : ''}
-          </th>
+        {fields.map((f, i) => (
+          <Fragment key={f.id}>
+            <th className={f.id === numId ? 'col-number' : undefined}
+                style={{ width: `${(Math.max(1, f.width ?? 1) / total) * 100}%` }}>
+              {f.name}{f.unit ? `, ${f.unit}` : ''}
+              {f.required ? ' *' : ''}
+            </th>
+            {hasBP && i === firstBpIndex && <th className="col-srad">СрАД</th>}
+          </Fragment>
         ))}
         <th className="actions-col" />
       </tr>
     </thead>
     <tbody>
-      {entries.map(e => (
+      {entries.map(e => {
+        const srad = hasBP ? sradInfo(e, fields[firstBpIndex]) : undefined;
+        return (
         <tr key={e.id}>
-          {fields.map(f => (
-            <td key={f.id} className={f.id === numId ? 'col-number wrap-cell' : 'wrap-cell'}>
-              {f.type === 'bp'
-                ? formatBP(e.values[f.id] as BPValues, f.parts)
-                : formatCell(f, String(e.values[f.id] ?? ''))}
-            </td>
+          {fields.map((f, i) => (
+            <Fragment key={f.id}>
+              <td className={f.id === numId ? 'col-number wrap-cell' : 'wrap-cell'}>
+                {f.type === 'bp'
+                  ? formatBP(e.values[f.id] as BPValues, f.parts)
+                  : formatCell(f, String(e.values[f.id] ?? ''))}
+              </td>
+              {hasBP && i === firstBpIndex && (
+                <td className="col-srad">
+                  {srad && (
+                    <span className={`status-${SRAD_CATEGORY_COLOR[srad.cat]}`}>
+                      {srad.map} {SRAD_CATEGORY_LABEL[srad.cat]}
+                    </span>
+                  )}
+                </td>
+              )}
+            </Fragment>
           ))}
           <td className="actions-col">
             <button onClick={() => onEdit(e)}>✎</button>
             <button onClick={() => onDelete(e)}>🗑</button>
           </td>
         </tr>
-      ))}
+        );
+      })}
       {entries.length === 0 && (
-        <tr><td colSpan={fields.length + 1}>Нет записей</td></tr>
+        <tr><td colSpan={fields.length + 1 + (hasBP ? 1 : 0)}>Нет записей</td></tr>
       )}
     </tbody>
     </table>
@@ -135,6 +164,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
         {entries.map(e => {
           const status = classifyEntry(e, fields);
           const highlights = extractHighlights(e, fields);
+          const srad = hasBP ? sradInfo(e, fields[firstBpIndex]) : undefined;
           const dtField = dtId ? report.fields.find(f => f.id === dtId) : undefined;
           const dtRaw = dtId ? e.values[dtId] : undefined;
           const dateStr = dtRaw && dtField ? formatCell(dtField, String(dtRaw)) : '';
@@ -157,6 +187,11 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
                   <span key={i} className="entry-card__value">{h}</span>
                 ))}
               </div>
+              {srad && (
+                <div className="entry-card__srad">
+                  СрАД {srad.map} · <span className={`status-${SRAD_CATEGORY_COLOR[srad.cat]}`}>{SRAD_CATEGORY_LABEL[srad.cat]}</span>
+                </div>
+              )}
               {cleanContext && <div className="entry-card__context">{cleanContext}</div>}
             </div>
           );

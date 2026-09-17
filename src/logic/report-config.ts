@@ -6,16 +6,16 @@ export function genId(prefix: string): string {
 }
 
 export const BP_PARTS = [
-  { id: 'systolic', label: 'ВД' },
-  { id: 'diastolic', label: 'НД' },
-  { id: 'pulse', label: 'П' },
+  { id: 'systolic', label: 'САД' },
+  { id: 'diastolic', label: 'ДАД' },
+  { id: 'pulse', label: 'Пульс' },
 ] as const;
 
 function mkField(name: string, type: Field['type'], unit?: string, required = false, width = DEFAULT_FIELD_WIDTH): Field {
   return { id: genId('fld'), name, type, unit, required, width };
 }
 
-export function mkBPField(name = 'ВД / НД / П'): Field {
+export function mkBPField(name = 'САД / ДАД / Пульс'): Field {
   return {
     id: genId('fld'),
     name,

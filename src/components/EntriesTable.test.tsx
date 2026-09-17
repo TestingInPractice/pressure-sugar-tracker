@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
 import type { Field, Entry } from '../types';
@@ -82,5 +82,76 @@ describe('EntriesTable + EntryForm', () => {
     await userEvent.type(screen.getByLabelText(/^Давление/), '130');
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     expect(saved).toHaveLength(1);
+  });
+
+  it('renders СрАД column after first BP field with value and category label', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
+    };
+    const note: Field = { id: 'f2', name: 'Примечание', type: 'text', required: false, width: 30 };
+    render(
+      <EntriesTable
+        report={{ fields: [bp, note] }}
+        entries={[{ id: 'e5', reportId: 'r', values: { bp1: { systolic: 120, diastolic: 80, pulse: 70 }, f2: '' }, createdAt: 8 }]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers.map(h => h.textContent)).toEqual(['САД / ДАД / Пульс', 'СрАД', 'Примечание', '']);
+    const badge = screen.getByText('93 Нормотония');
+    expect(badge).toBeInTheDocument();
+    expect(badge.closest('td')).toHaveClass('col-srad');
+  });
+
+  it('does not render СрАД column when report has no BP field', () => {
+    render(
+      <EntriesTable
+        report={{ fields }}
+        entries={[entry]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.queryByText('СрАД')).toBeNull();
+  });
+
+  it('grows Нет записей colSpan when СрАД column present', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
+    };
+    render(
+      <EntriesTable
+        report={{ fields: [bp] }}
+        entries={[]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText('Нет записей')).toHaveAttribute('colspan', '3');
+  });
+
+  it('renders СрАД line in mobile card when BP value computable', () => {
+    const mq = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mq));
+    const bp: Field = {
+      id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
+    };
+    render(
+      <EntriesTable
+        report={{ fields: [bp] }}
+        entries={[{ id: 'e5', reportId: 'r', values: { bp1: { systolic: 120, diastolic: 80, pulse: 70 } }, createdAt: 8 }]}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    const sradLine = document.querySelector('.entry-card__srad');
+    expect(sradLine).not.toBeNull();
+    expect(sradLine?.textContent).toContain('СрАД 93');
+    expect(sradLine?.textContent).toContain('Нормотония');
+    vi.unstubAllGlobals();
   });
 });

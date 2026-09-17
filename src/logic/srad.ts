@@ -1,0 +1,44 @@
+/**
+ * СрАД (среднее артериальное давление) — расчёт и классификация.
+ * Формула: СрАД = (САД + 2×ДАД)/3 — стандартная клиническая оценка MAP.
+ * Классификация: <70 гипотония, 70–110 нормотония, >110 гипертония.
+ * Независима от classifyBP: это отдельная классификация по среднему давлению.
+ */
+
+import type { BPValues } from '../types';
+import type { StatusColor } from './classification';
+
+export type SradCategory = 'hypotension' | 'normotension' | 'hypertension';
+
+/** СрАД = (САД + 2×ДАД)/3, округление до целого. undefined при отсутствии/нечисловых значениях. */
+export function computeSrad(bp: BPValues | undefined): number | undefined {
+  if (!bp) return undefined;
+  const sys = bp.systolic;
+  const dia = bp.diastolic;
+  if (sys === undefined || dia === undefined) return undefined;
+  if (String(sys).trim() === '' || String(dia).trim() === '') return undefined;
+  const sysN = Number(sys);
+  const diaN = Number(dia);
+  if (!Number.isFinite(sysN) || !Number.isFinite(diaN)) return undefined;
+  return Math.round((sysN + 2 * diaN) / 3);
+}
+
+/** Классификация по СрАД: <70 гипотония, 70–110 нормотония, >110 гипертония. */
+export function classifySrad(map: number | undefined): SradCategory | undefined {
+  if (map === undefined) return undefined;
+  if (map < 70) return 'hypotension';
+  if (map <= 110) return 'normotension';
+  return 'hypertension';
+}
+
+export const SRAD_CATEGORY_LABEL: Record<SradCategory, string> = {
+  hypotension: 'Гипотония',
+  normotension: 'Нормотония',
+  hypertension: 'Гипертония',
+};
+
+export const SRAD_CATEGORY_COLOR: Record<SradCategory, StatusColor> = {
+  hypotension: 'red',
+  normotension: 'green',
+  hypertension: 'yellow',
+};

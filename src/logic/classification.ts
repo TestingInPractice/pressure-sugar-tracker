@@ -10,9 +10,9 @@ import type { BPValues } from '../types';
 
 export type StatusColor = 'green' | 'yellow' | 'red';
 
-/** Определить поле BP в массиве полей по типу 'bp' или имени, содержащему 'ВД'. */
+/** Определить поле BP в массиве полей по типу 'bp' или имени, содержащему 'ВД' (старые отчёты) или 'САД'. */
 export function isBPFieldName(name: string): boolean {
-  return name.includes('ВД');
+  return name.includes('ВД') || name.includes('САД');
 }
 
 /** Определить поле сахара в массиве полей: тип number и (имя содержит 'сахар' или единица 'ммоль'). */

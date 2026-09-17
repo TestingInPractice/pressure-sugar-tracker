@@ -21,7 +21,7 @@ import type { MetricId } from './TrendChart';
 
 interface Props { reportId: string; onBack: () => void; autoOpenEntry?: boolean; onEntryFormOpened?: () => void }
 
-const TARGET_LABELS = { sys: 'Верхнее (ВД)', dia: 'Нижнее (НД)', pulse: 'Пульс', sugar: 'Сахар' } as const;
+const TARGET_LABELS = { sys: 'Систолическое (САД)', dia: 'Диастолическое (ДАД)', pulse: 'Пульс', sugar: 'Сахар' } as const;
 type TargetKey = keyof typeof TARGET_LABELS;
 const IOS_AUTO_SYNC_HINT = 'На iPhone автосинхронизация недоступна — обновите файл кнопкой «Синхронизация»';
 
@@ -189,9 +189,9 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const targetsSummary = () => {
     const t = report.targets;
     const parts: string[] = [];
-    if (t?.sys !== undefined) parts.push(`ВД ${t.sys}`);
-    if (t?.dia !== undefined) parts.push(`НД ${t.dia}`);
-    if (t?.pulse !== undefined) parts.push(`П ${t.pulse}`);
+    if (t?.sys !== undefined) parts.push(`САД ${t.sys}`);
+    if (t?.dia !== undefined) parts.push(`ДАД ${t.dia}`);
+    if (t?.pulse !== undefined) parts.push(`Пульс ${t.pulse}`);
     if (t?.sugar !== undefined) parts.push(`сахар ${t.sugar}`);
     return parts.length > 0 ? parts.join(' · ') : 'Нормы не заданы';
   };

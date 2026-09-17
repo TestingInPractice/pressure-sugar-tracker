@@ -485,13 +485,13 @@ it('saves personal targets via visible Мои нормы panel', async () => {
   await screen.findByRole('button', { name: '+ Запись' });
   expect(screen.getByText('Нормы не заданы')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-  fireEvent.change(screen.getByLabelText('Верхнее (ВД)'), { target: { value: '120' } });
-  fireEvent.change(screen.getByLabelText('Нижнее (НД)'), { target: { value: '80' } });
+  fireEvent.change(screen.getByLabelText('Систолическое (САД)'), { target: { value: '120' } });
+  fireEvent.change(screen.getByLabelText('Диастолическое (ДАД)'), { target: { value: '80' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   await waitFor(async () => {
     expect((await db.reports.get('p1'))?.targets).toEqual({ sys: 120, dia: 80, pulse: undefined, sugar: undefined });
   });
-  expect(screen.getByText(/ВД 120 · НД 80/)).toBeInTheDocument();
+  expect(screen.getByText(/САД 120 · ДАД 80/)).toBeInTheDocument();
 });
 
 it('bottom sheet opens from PDF icon and closes via overlay click', async () => {

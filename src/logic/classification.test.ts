@@ -75,6 +75,10 @@ describe('isBPFieldName', () => {
     expect(isBPFieldName('ВД / НД / П')).toBe(true);
     expect(isBPFieldName('Давление')).toBe(false);
   });
+
+  it('detects САД in name', () => {
+    expect(isBPFieldName('САД / ДАД / Пульс')).toBe(true);
+  });
 });
 
 describe('isSugarField', () => {

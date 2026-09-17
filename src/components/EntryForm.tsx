@@ -104,7 +104,7 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
               <div className="bp-inputs">
                 {(['systolic', 'diastolic', 'pulse'] as const).map(part => (
                   <label key={part} className="bp-part">
-                    {part === 'systolic' ? 'ВД' : part === 'diastolic' ? 'НД' : 'П'}
+                    {part === 'systolic' ? 'САД' : part === 'diastolic' ? 'ДАД' : 'Пульс'}
                     <input inputMode="decimal"
                            value={String((currentBP as Record<string, unknown>)[part] ?? '')}
                            onChange={e => setBP(f.id, part, e.target.value)} />

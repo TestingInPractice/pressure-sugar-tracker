@@ -1148,6 +1148,31 @@ p.error {
   color: var(--danger);
 }
 
+/* СрАД: фиксированная колонка после первого BP-поля */
+.col-srad {
+  width: 88px;
+  white-space: nowrap;
+}
+
+/* СрАД: бейдж категории (переиспользует status-green/yellow/red как фон) */
+.col-srad .status-green,
+.col-srad .status-yellow,
+.col-srad .status-red,
+.entry-card__srad .status-green,
+.entry-card__srad .status-yellow,
+.entry-card__srad .status-red {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #fff;
+  white-space: nowrap;
+}
+
 /* ============================================================
    Инфо-блоки: hint, инструкция будильника, шорткат-help
    ============================================================ */
@@ -1674,6 +1699,15 @@ p.error {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.entry-card__srad {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 @media (max-width: 480px) {

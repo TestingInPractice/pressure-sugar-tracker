@@ -46,13 +46,13 @@ describe('EntryForm', () => {
     };
     let saved: unknown;
     render(<EntryForm fields={[legacyBP]} onSave={v => { saved = v; }} onCancel={() => {}} />);
-    // Should render 3 numeric inputs (ВД/НД/П)
-    expect(screen.getByLabelText('ВД')).toBeInTheDocument();
-    expect(screen.getByLabelText('НД')).toBeInTheDocument();
-    expect(screen.getByLabelText('П')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('ВД'), { target: { value: '120' } });
-    fireEvent.change(screen.getByLabelText('НД'), { target: { value: '80' } });
-    fireEvent.change(screen.getByLabelText('П'), { target: { value: '70' } });
+    // Should render 3 numeric inputs (САД/ДАД/Пульс)
+    expect(screen.getByLabelText('САД')).toBeInTheDocument();
+    expect(screen.getByLabelText('ДАД')).toBeInTheDocument();
+    expect(screen.getByLabelText('Пульс')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('САД'), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText('ДАД'), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText('Пульс'), { target: { value: '70' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     expect(saved).toEqual({ bpLegacy: { systolic: '120', diastolic: '80', pulse: '70' } });
   });

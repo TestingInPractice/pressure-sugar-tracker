@@ -15,7 +15,7 @@ it('persists a report with default fields and edited name on create', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Создать отчёт' }));
   expect(cap.get()?.name).toBe('Мой трекер');
   expect(cap.get()?.fields.length).toBe(5);
-  const bp = cap.get()?.fields.find(f => f.name === 'ВД / НД / П');
+  const bp = cap.get()?.fields.find(f => f.name === 'САД / ДАД / Пульс');
   expect(bp?.type).toBe('bp');
 });
 

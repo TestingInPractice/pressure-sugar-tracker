@@ -479,6 +479,31 @@ it('print chart toggles remove charts and norm lines', async () => {
   expect(block!.querySelectorAll('svg').length).toBeGreaterThanOrEqual(1);
 });
 
+it('print dialog offers СрАд chart checked by default and renders it', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  expect(screen.getByLabelText('График: СрАд')).toBeChecked();
+  await screen.findByText('130/85');
+  const block = document.querySelector('.print-charts');
+  expect(block).not.toBeNull();
+  expect(block!.textContent).toMatch(/СрАд/);
+  expect(block!.querySelectorAll('svg').length).toBeGreaterThanOrEqual(3);
+});
+
+it('toggling СрАд checkbox removes the srad chart', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  await screen.findByLabelText('График: СрАд');
+  await screen.findByText('130/85');
+  fireEvent.click(screen.getByLabelText('График: СрАд'));
+  const block = document.querySelector('.print-charts');
+  expect(block!.textContent).not.toMatch(/СрАд/);
+});
+
 it('saves personal targets via visible Мои нормы panel', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);

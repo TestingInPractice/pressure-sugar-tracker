@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TrendChart, {
   bucketPoints, autoBucket, buildChartPoints, takeLast, MAX_UNBUCKETED_POINTS,
-  buildPressureSeries, buildPulseSeries, findBPField, findSugarField, findPulseField,
+  buildPressureSeries, buildPulseSeries, buildSradSeries, findBPField, findSugarField, findPulseField,
+  metricAvailable, buildMetricSeries, buildMetricTargets,
 } from './TrendChart';
 import type { Field, Entry, BPValues } from '../types';
 
@@ -321,5 +322,48 @@ describe('metric builders', () => {
     expect(screen.getByText('Верхнее: 120')).toBeInTheDocument();
     fireEvent.click(circle);
     expect(screen.queryByText('Верхнее: 120')).toBeNull();
+  });
+});
+
+describe('srad metric', () => {
+  const sradEntries: Entry[] = [
+    { id: 'e1', reportId: 'r1', values: { bp1: { systolic: 130, diastolic: 80 }, d1: '2026-08-20T10:00' }, createdAt: 1 },
+    { id: 'e2', reportId: 'r1', values: { bp1: { systolic: 150, diastolic: 100 }, d1: '2026-08-21T10:00' }, createdAt: 2 },
+    { id: 'e3', reportId: 'r1', values: { bp1: { systolic: 60, diastolic: 40 }, d1: '2026-08-22T10:00' }, createdAt: 3 },
+    { id: 'e4', reportId: 'r1', values: { d1: '2026-08-23T10:00' }, createdAt: 4 },
+  ];
+
+  it('buildSradSeries computes MAP with category colors', () => {
+    const pts = buildSradSeries(sradEntries, 'bp1', 'd1');
+    expect(pts.map(p => p.value)).toEqual([97, 117, 47]);
+    expect(pts.map(p => p.color)).toEqual(['green', 'yellow', 'red']);
+  });
+
+  it('buildSradSeries skips entries without BP value or date', () => {
+    const pts = buildSradSeries(sradEntries, 'bp1', 'd1');
+    expect(pts).toHaveLength(3);
+    const noDate = buildSradSeries(
+      [{ id: 'e5', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 } }, createdAt: 5 }],
+      'bp1', 'd1',
+    );
+    expect(noDate).toHaveLength(0);
+  });
+
+  it('buildMetricSeries returns srad series with label', () => {
+    const series = buildMetricSeries(sradEntries, [bpField, dtField], 'srad');
+    expect(series).toHaveLength(1);
+    expect(series[0].id).toBe('srad');
+    expect(series[0].label).toBe('СрАд');
+    expect(series[0].points).toHaveLength(3);
+  });
+
+  it('metricAvailable srad matches bp availability', () => {
+    expect(metricAvailable([bpField, dtField], 'srad')).toBe(true);
+    expect(metricAvailable([sugarField, dtField], 'srad')).toBe(false);
+  });
+
+  it('buildMetricTargets returns no targets for srad', () => {
+    expect(buildMetricTargets({ sys: 120, dia: 80 }, 'srad')).toEqual([]);
+    expect(buildMetricTargets(undefined, 'srad')).toEqual([]);
   });
 });

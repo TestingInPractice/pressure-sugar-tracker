@@ -27,6 +27,7 @@ const METRICS: { id: Metric; label: string }[] = [
   { id: 'bp', label: 'Давление' },
   { id: 'pulse', label: 'Пульс' },
   { id: 'sugar', label: 'Сахар' },
+  { id: 'srad', label: 'СрАд' },
 ];
 
 export default function DashboardTab({ onCreate, onGoMore }: Props) {
@@ -136,6 +137,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
     bp: chartReport ? metricAvailable(chartReport.fields, 'bp') : false,
     pulse: chartReport ? metricAvailable(chartReport.fields, 'pulse') : false,
     sugar: chartReport ? metricAvailable(chartReport.fields, 'sugar') : false,
+    srad: chartReport ? metricAvailable(chartReport.fields, 'srad') : false,
   };
 
   let chartSeries: ChartSeries[] = [];

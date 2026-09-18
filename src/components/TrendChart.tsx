@@ -3,6 +3,7 @@ import type { Entry, Field, BPValues, ReportTargets } from '../types';
 import { datetimeFieldId } from '../logic/print-filter';
 import { classifyBP, classifySugar, isBPFieldName, isSugarField } from '../logic/classification';
 import type { StatusColor } from '../logic/classification';
+import { computeSrad, classifySrad, SRAD_CATEGORY_COLOR } from '../logic/srad';
 
 /** Точки для графика: значение + цвет + дата. */
 export interface ChartPoint {
@@ -91,11 +92,12 @@ export function takeLast(points: ChartPoint[], n: number): ChartPoint[] {
   return [...points].sort((a, b) => b.date - a.date).slice(0, n).sort((a, b) => a.date - b.date);
 }
 
-export type MetricId = 'bp' | 'pulse' | 'sugar';
+export type MetricId = 'bp' | 'pulse' | 'sugar' | 'srad';
 
 export function metricAvailable(fields: Field[], metric: MetricId): boolean {
   if (metric === 'bp') return !!findBPField(fields);
   if (metric === 'pulse') return !!(findBPField(fields) || findPulseField(fields));
+  if (metric === 'srad') return !!findBPField(fields);
   return !!findSugarField(fields);
 }
 
@@ -119,6 +121,11 @@ export function buildMetricSeries(entries: Entry[], fields: Field[], metric: Met
       ? buildPulseSeries(entries, bp.id, dt, true)
       : buildPulseSeries(entries, standalone!.id, dt, false);
     return [{ id: 'pulse', label: 'Пульс', points: pts }];
+  }
+  if (metric === 'srad') {
+    const bp = findBPField(fields);
+    if (!bp) return [];
+    return [{ id: 'srad', label: 'СрАд', points: buildSradSeries(entries, bp.id, dt) }];
   }
   const sugar = findSugarField(fields);
   if (!sugar) return [];
@@ -212,6 +219,26 @@ export function buildPulseSeries(
     const raw = fromBP ? (e.values[pulseFieldId] as BPValues | undefined)?.pulse : e.values[pulseFieldId];
     const v = Number(raw);
     if (Number.isFinite(v)) points.push({ date, value: v, color: 'accent' });
+  }
+  return points;
+}
+
+/** СрАд: среднее артериальное давление из композитного поля давления, цвет по категории. */
+export function buildSradSeries(
+  entries: Entry[],
+  bpFieldId: string,
+  dtFieldId: string | undefined,
+): ChartPoint[] {
+  const points: ChartPoint[] = [];
+  for (const e of entries) {
+    const date = pointDate(e, dtFieldId);
+    if (date === undefined) continue;
+    const bp = e.values[bpFieldId] as BPValues | undefined;
+    const v = computeSrad(bp);
+    if (v === undefined) continue;
+    const category = classifySrad(v);
+    if (category === undefined) continue;
+    points.push({ date, value: v, color: SRAD_CATEGORY_COLOR[category] });
   }
   return points;
 }

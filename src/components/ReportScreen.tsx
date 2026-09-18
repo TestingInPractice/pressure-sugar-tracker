@@ -35,7 +35,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const [nameDraft, setNameDraft] = useState('');
   const [showRange, setShowRange] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
-  const [printCharts, setPrintCharts] = useState({ bp: true, pulse: true, sugar: true, norms: true });
+  const [printCharts, setPrintCharts] = useState({ bp: true, pulse: true, sugar: true, srad: true, norms: true });
   const [syncMsg, setSyncMsg] = useState('');
   const [pdfMsg, setPdfMsg] = useState('');
   const [autoSyncHint, setAutoSyncHint] = useState('');
@@ -99,6 +99,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
     { id: 'bp', label: 'График: давление' },
     { id: 'pulse', label: 'График: пульс' },
     { id: 'sugar', label: 'График: сахар' },
+    { id: 'srad', label: 'График: СрАд' },
   ];
   const printSeries = PRINT_METRICS.flatMap(m =>
     printCharts[m.id] && metricAvailable(report.fields, m.id)

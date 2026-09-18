@@ -225,3 +225,22 @@ it('chart shows no target lines when targets unset', async () => {
   await screen.findByText('Верхнее');
   expect(document.querySelectorAll('.dash-chart [data-target]')).toHaveLength(0);
 });
+
+it('chart switches to srad on metric change', async () => {
+  await seedChartReports();
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText('Верхнее');
+  fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
+  expect(await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
+  expect(screen.queryByText('Нижнее')).toBeNull();
+  expect(dashChartCircles(false)).toHaveLength(2);
+});
+
+it('disables srad metric when report has no BP field', async () => {
+  await putReport({ id: 'r1', name: 'Сахар', fields: [sugarField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
+  await putEntry({ id: 'e1', reportId: 'r1', values: { s1: 5.5, d1: '2026-08-20T10:00' }, createdAt: 1 });
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText(/нет данных «Давление»/);
+  expect(screen.getByRole('button', { name: 'СрАд' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Сахар' })).not.toBeDisabled();
+});

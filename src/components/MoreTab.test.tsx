@@ -114,3 +114,12 @@ it('importing a backup file shows report-specific error', async () => {
   await importFile({ version: 1, settings: { masterOn: true, syncOn: false }, reports: [], entries: [] });
   expect(await screen.findByText(/полный бэкап/)).toBeInTheDocument();
 });
+
+it('shows help section with САД/ДАД/СрАд explanation and norms', () => {
+  render(<MoreTab onDataChanged={() => {}} />);
+  expect(screen.getByText('Справка')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Справка'));
+  expect(screen.getByText('СрАд = (САД + 2 × ДАД) / 3')).toBeInTheDocument();
+  expect(screen.getByText(/меньше 120/)).toBeInTheDocument();
+  expect(screen.getByText(/70–110/)).toBeInTheDocument();
+});

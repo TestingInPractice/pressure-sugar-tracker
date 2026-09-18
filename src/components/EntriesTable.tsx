@@ -114,7 +114,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
               {f.name}{f.unit ? `, ${f.unit}` : ''}
               {f.required ? ' *' : ''}
             </th>
-            {hasBP && i === firstBpIndex && <th className="col-srad">СрАД</th>}
+            {hasBP && i === firstBpIndex && <th className="col-srad">СрАд</th>}
           </Fragment>
         ))}
         <th className="actions-col" />
@@ -189,7 +189,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
               </div>
               {srad && (
                 <div className="entry-card__srad">
-                  СрАД {srad.map} · <span className={`status-${SRAD_CATEGORY_COLOR[srad.cat]}`}>{SRAD_CATEGORY_LABEL[srad.cat]}</span>
+                  СрАд {srad.map} · <span className={`status-${SRAD_CATEGORY_COLOR[srad.cat]}`}>{SRAD_CATEGORY_LABEL[srad.cat]}</span>
                 </div>
               )}
               {cleanContext && <div className="entry-card__context">{cleanContext}</div>}

@@ -84,7 +84,7 @@ describe('EntriesTable + EntryForm', () => {
     expect(saved).toHaveLength(1);
   });
 
-  it('renders СрАД column after first BP field with value and category label', () => {
+  it('renders СрАд column after first BP field with value and category label', () => {
     const bp: Field = {
       id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
       parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
@@ -99,13 +99,13 @@ describe('EntriesTable + EntryForm', () => {
       />,
     );
     const headers = screen.getAllByRole('columnheader');
-    expect(headers.map(h => h.textContent)).toEqual(['САД / ДАД / Пульс', 'СрАД', 'Примечание', '']);
+    expect(headers.map(h => h.textContent)).toEqual(['САД / ДАД / Пульс', 'СрАд', 'Примечание', '']);
     const badge = screen.getByText('93 Нормотония');
     expect(badge).toBeInTheDocument();
     expect(badge.closest('td')).toHaveClass('col-srad');
   });
 
-  it('does not render СрАД column when report has no BP field', () => {
+  it('does not render СрАд column when report has no BP field', () => {
     render(
       <EntriesTable
         report={{ fields }}
@@ -114,10 +114,10 @@ describe('EntriesTable + EntryForm', () => {
         onDelete={() => {}}
       />,
     );
-    expect(screen.queryByText('СрАД')).toBeNull();
+    expect(screen.queryByText('СрАд')).toBeNull();
   });
 
-  it('grows Нет записей colSpan when СрАД column present', () => {
+  it('grows Нет записей colSpan when СрАд column present', () => {
     const bp: Field = {
       id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
       parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
@@ -133,7 +133,7 @@ describe('EntriesTable + EntryForm', () => {
     expect(screen.getByText('Нет записей')).toHaveAttribute('colspan', '3');
   });
 
-  it('renders СрАД line in mobile card when BP value computable', () => {
+  it('renders СрАд line in mobile card when BP value computable', () => {
     const mq = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mq));
     const bp: Field = {
@@ -150,7 +150,7 @@ describe('EntriesTable + EntryForm', () => {
     );
     const sradLine = document.querySelector('.entry-card__srad');
     expect(sradLine).not.toBeNull();
-    expect(sradLine?.textContent).toContain('СрАД 93');
+    expect(sradLine?.textContent).toContain('СрАд 93');
     expect(sradLine?.textContent).toContain('Нормотония');
     vi.unstubAllGlobals();
   });

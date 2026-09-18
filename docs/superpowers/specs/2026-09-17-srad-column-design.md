@@ -1,19 +1,19 @@
-# СрАД (Mean Arterial Pressure) column + САД/ДАД/Pulse labels — Design
+# СрАд (Mean Arterial Pressure) column + САД/ДАД/Pulse labels — Design
 
 **Date:** 2026-09-17
 **Status:** Draft (pending user review)
 
 ## Objective
 
-Add a computed Mean Arterial Pressure column (СрАД) to the entries table with a textual
+Add a computed Mean Arterial Pressure column (СрАд) to the entries table with a textual
 classification (гипотония / нормотония / гипертония), and rename the BP field sub-labels
 from ВД/НД/П to САД/ДАД/Пульс so the app uses standard medical terminology for systolic
 and diastolic pressure.
 
 ## Decisions (user-confirmed 2026-09-17)
 
-- **Formula:** СрАД = (САД + 2×ДАД)/3, rounded to integer — the standard clinical approximation of mean arterial pressure.
-- **Classification by СрАД:** <70 → гипотония; 70–110 → нормотония; >110 → гипертония. Boundaries inclusive in нормотония (70 and 110 are нормотония).
+- **Formula:** СрАд = (САД + 2×ДАД)/3, rounded to integer — the standard clinical approximation of mean arterial pressure.
+- **Classification by СрАд:** <70 → гипотония; 70–110 → нормотония; >110 → гипертония. Boundaries inclusive in нормотония (70 and 110 are нормотония).
 - **Labels:** САД / ДАД / Пульс (ВД/НД/П renamed; «Верхнее/Нижнее» → «Систолическое/Диастолическое» in norms panel).
 - **Placement:** separate column in the entries table (desktop) + a line in the mobile card.
 
@@ -33,16 +33,16 @@ Precision note: the ⅓-weighting slightly underestimates true MAP (≈2–5 mmH
 
 Included:
 - New pure logic module `src/logic/srad.ts` (+ `srad.test.ts`): `computeSrad`, `classifySrad`, category label + color maps.
-- Computed «СрАД» column in `EntriesTable` (desktop table + mobile card line): value + colored category label.
+- Computed «СрАд» column in `EntriesTable` (desktop table + mobile card line): value + colored category label.
 - Label rename → САД/ДАД/Пульс in: `report-config.ts` (BP_PARTS + default field name «САД / ДАД / Пульс»), `format.ts` fallback labels, `EntryForm.tsx` legacy-BP ternary, `ReportScreen.tsx` (TARGET_LABELS and targetsSummary).
 - `isBPFieldName` extended to also detect «САД» (legacy text-BP recognition), «ВД» kept for old reports.
 - Tests updated for renamed defaults; new tests for srad logic and table rendering.
 
 Excluded:
 - PDF export (`jsPDF` builds its own table — the column is intentionally NOT added there; separate task if wanted).
-- DB / backup / sync migration — СрАД computed at render time; `BPValues` schema unchanged.
-- Existing row color classification (`classifyBP` by САД/ДАД thresholds) — left untouched; the СрАД column is an independent classification.
-- Chart series for СрАД; dashboard summary; alarm thresholds — not requested.
+- DB / backup / sync migration — СрАд computed at render time; `BPValues` schema unchanged.
+- Existing row color classification (`classifyBP` by САД/ДАД thresholds) — left untouched; the СрАд column is an independent classification.
+- Chart series for СрАд; dashboard summary; alarm thresholds — not requested.
 - Migrating labels of existing reports (their parts stay «ВД/НД/П» — labels are data-driven, stored in each report).
 
 ## Design
@@ -55,10 +55,10 @@ import type { StatusColor } from './classification';
 
 export type SradCategory = 'hypotension' | 'normotension' | 'hypertension';
 
-/** СрАД = (САД + 2×ДАД)/3, округление до целого. undefined при отсутствии/нечисловых значениях. */
+/** СрАд = (САД + 2×ДАД)/3, округление до целого. undefined при отсутствии/нечисловых значениях. */
 export function computeSrad(bp: BPValues | undefined): number | undefined;
 
-/** Классификация по СрАД: <70 гипотония, 70–110 нормотония, >110 гипертония. */
+/** Классификация по СрАд: <70 гипотония, 70–110 нормотония, >110 гипертония. */
 export function classifySrad(map: number | undefined): SradCategory | undefined;
 
 export const SRAD_CATEGORY_LABEL: Record<SradCategory, string>;
@@ -86,9 +86,9 @@ export const SRAD_CATEGORY_COLOR: Record<SradCategory, StatusColor>;
 ### 3. EntriesTable rendering
 
 - BP fields identified by `f.type === 'bp' || isBPFieldName(f.name)` (existing helper).
-- **Desktop table:** render one extra `<th>СрАД</th>` after the **first BP column** and a matching `<td>` per row; only when the report has ≥1 BP field. Fixed column width (`.col-srad`, ≈88px) so existing proportional field widths are untouched; «Нет записей» `colSpan` grows by 1.
+- **Desktop table:** render one extra `<th>СрАд</th>` after the **first BP column** and a matching `<td>` per row; only when the report has ≥1 BP field. Fixed column width (`.col-srad`, ≈88px) so existing proportional field widths are untouched; «Нет записей» `colSpan` grows by 1.
 - **Cell content:** formatted `computeSrad(bp)` value («93») + category label («Нормотония») wrapped in the category color class; empty string when `undefined`.
-- **Mobile cards:** separate line (`.entry-card__srad`) — «СрАД 93 · Нормотония», colored by category; rendered only when BP field exists and value computable. Existing `extractHighlights` untouched.
+- **Mobile cards:** separate line (`.entry-card__srad`) — «СрАд 93 · Нормотония», colored by category; rendered only when BP field exists and value computable. Existing `extractHighlights` untouched.
 - **Browser print** (window.print) uses the same DOM table — column appears in print output too. Consistent with «prints what is visible»; jsPDF export deliberately unchanged (Scope).
 
 ### 4. Edge cases
@@ -108,7 +108,7 @@ export const SRAD_CATEGORY_COLOR: Record<SradCategory, StatusColor>;
 
 ## Risks
 
-- **Color mismatch:** a row may be red (old classification, e.g. 140/95) while СрАД says «Нормотония» (≈106). Accepted: two independent classifications; the СрАД column is documented as separate. Option to unify later.
+- **Color mismatch:** a row may be red (old classification, e.g. 140/95) while СрАд says «Нормотония» (≈106). Accepted: two independent classifications; the СрАд column is documented as separate. Option to unify later.
 - **Labels show only on new reports:** old reports keep «ВД/НД/П» until their fields are recreated (labels are data-driven). Accepted — no data migration.
 - **Column width on narrow screens:** table already scrolls horizontally (`.entries-scroll`); fixed ≈88px column is acceptable.
 

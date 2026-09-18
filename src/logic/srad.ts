@@ -23,11 +23,14 @@ export function computeSrad(bp: BPValues | undefined): number | undefined {
   return Math.round((sysN + 2 * diaN) / 3);
 }
 
+/** Фиксированная норма СрАд (нормотония): 70–110 мм рт.ст. */
+export const SRAD_NORM = { low: 70, high: 110 } as const;
+
 /** Классификация по СрАд: <70 гипотония, 70–110 нормотония, >110 гипертония. */
 export function classifySrad(map: number | undefined): SradCategory | undefined {
   if (map === undefined) return undefined;
-  if (map < 70) return 'hypotension';
-  if (map <= 110) return 'normotension';
+  if (map < SRAD_NORM.low) return 'hypotension';
+  if (map <= SRAD_NORM.high) return 'normotension';
   return 'hypertension';
 }
 

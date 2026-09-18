@@ -66,6 +66,24 @@ it('includes charts in the PDF when provided', () => {
   expect(bytesCharts.byteLength).toBeGreaterThan(bytesEmpty.byteLength);
 });
 
+it('includes a target range band chart in the PDF when provided', () => {
+  const bytesEmpty = buildReportPdfBytes(report, [entry]);
+  const bytesCharts = buildReportPdfBytes(report, [entry], {
+    charts: [{
+      title: 'СрАд',
+      series: [{ id: 'srad', label: 'СрАд', points: [
+        { date: 1, value: 97, color: 'green' },
+        { date: 2, value: 117, color: 'yellow' },
+      ] }],
+      targets: [],
+      targetRange: { low: 70, high: 110 },
+    }],
+  });
+  expect(bytesCharts.byteLength).toBeGreaterThan(bytesEmpty.byteLength);
+  const head = new TextDecoder().decode(bytesCharts.slice(0, 5));
+  expect(head).toBe('%PDF-');
+});
+
 it('does not regress PDF generation with a full page of entries (donate block forces new page)', () => {
   const manyEntries = Array.from({ length: 60 }, (_, i) => ({
     id: `e${i}`,

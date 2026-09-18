@@ -504,6 +504,29 @@ it('toggling СрАд checkbox removes the srad chart', async () => {
   expect(block!.textContent).not.toMatch(/СрАд/);
 });
 
+it('print charts show fixed СрАд norm band when norms checked', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  await screen.findByLabelText('График: СрАд');
+  await screen.findByText('130/85');
+  const block = document.querySelector('.print-charts');
+  expect(block!.querySelectorAll('rect[data-band="norm"]').length).toBeGreaterThan(0);
+});
+
+it('print charts hide СрАд norm band when norms unchecked', async () => {
+  await seedPrintable();
+  render(<ReportScreen reportId="pp" onBack={() => {}} />);
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт PDF' }));
+  await screen.findByLabelText('График: СрАд');
+  await screen.findByText('130/85');
+  fireEvent.click(screen.getByLabelText('Норма на графиках'));
+  const block = document.querySelector('.print-charts');
+  expect(block!.querySelectorAll('rect[data-band="norm"]')).toHaveLength(0);
+});
+
 it('saves personal targets via visible Мои нормы panel', async () => {
   await seed();
   render(<ReportScreen reportId="p1" onBack={() => {}} />);

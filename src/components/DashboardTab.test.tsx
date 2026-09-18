@@ -244,3 +244,32 @@ it('disables srad metric when report has no BP field', async () => {
   expect(screen.getByRole('button', { name: 'СрАд' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Сахар' })).not.toBeDisabled();
 });
+
+it('chart shows fixed СрАд norm band when targets toggle is on', async () => {
+  localStorage.setItem('chart-show-targets', '1');
+  await seedChartReports();
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText('Верхнее');
+  fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
+  await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' });
+  expect(document.querySelector('.dash-chart rect[data-band="norm"]')).not.toBeNull();
+});
+
+it('chart hides СрАд norm band when targets toggle is off', async () => {
+  localStorage.setItem('chart-show-targets', '1');
+  await seedChartReports();
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText('Верхнее');
+  fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
+  await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' });
+  fireEvent.click(screen.getByLabelText('Норма на графике'));
+  expect(document.querySelector('.dash-chart rect[data-band="norm"]')).toBeNull();
+});
+
+it('chart shows no norm band on pressure segment', async () => {
+  localStorage.setItem('chart-show-targets', '1');
+  await seedChartReports();
+  render(<DashboardTab onCreate={() => {}} />);
+  await screen.findByText('Верхнее');
+  expect(document.querySelector('.dash-chart rect[data-band="norm"]')).toBeNull();
+});

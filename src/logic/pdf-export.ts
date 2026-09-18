@@ -17,6 +17,7 @@ export interface PdfChart {
   title: string;
   series: { id: string; label: string; dashed?: boolean; hollow?: boolean; points: { date: number; value: number; color: ChartPointColor }[] }[];
   targets: { id: string; label: string; value: number; color?: string; dashed?: boolean }[];
+  targetRange?: { low: number; high: number };
 }
 
 export interface PdfMeta {
@@ -42,6 +43,8 @@ const CHART_LINE_COLOR = '#0e7490';
 const CHART_GRID_COLOR = '#cbd5e1';
 const CHART_TEXT_COLOR = '#5c6f81';
 const CHART_TARGET_COLOR = '#f97316';
+const CHART_BAND_FILL = '#e6f2f7';
+const CHART_BAND_BORDER = '#a9c9d9';
 
 function drawPdfChart(
   doc: jsPDF,
@@ -73,6 +76,10 @@ function drawPdfChart(
   }
   let vMin = Math.min(...allVals, ...targetVals);
   let vMax = Math.max(...allVals, ...targetVals);
+  if (chart.targetRange) {
+    vMin = Math.min(vMin, chart.targetRange.low);
+    vMax = Math.max(vMax, chart.targetRange.high);
+  }
   const pad = (vMax - vMin) * 0.1 || 1;
   vMin -= pad;
   vMax += pad;
@@ -80,6 +87,17 @@ function drawPdfChart(
   const yScale = (v: number) => innerBottom - ((v - vMin) / (vMax - vMin)) * innerH;
   const n = Math.max(...chart.series.map(s => s.points.length));
   const xPos = (i: number) => x + (n <= 1 ? w / 2 : (i / (n - 1)) * w);
+
+  if (chart.targetRange) {
+    const yHigh = yScale(chart.targetRange.high);
+    const yLow = yScale(chart.targetRange.low);
+    doc.setFillColor(CHART_BAND_FILL);
+    doc.rect(x, yHigh, w, yLow - yHigh, 'F');
+    doc.setDrawColor(CHART_BAND_BORDER);
+    doc.setLineWidth(0.5);
+    doc.line(x, yHigh, right, yHigh);
+    doc.line(x, yLow, right, yLow);
+  }
 
   doc.setFont('PTSans', 'normal');
   doc.setFontSize(8);

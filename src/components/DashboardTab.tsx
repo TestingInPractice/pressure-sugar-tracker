@@ -13,6 +13,7 @@ import TrendChart, {
   findBPField,
 } from './TrendChart';
 import type { ChartSeries, TargetLine, MetricId } from './TrendChart';
+import { SRAD_NORM } from '../logic/srad';
 import EntryForm from './EntryForm';
 import InstallHint from './InstallHint';
 
@@ -158,6 +159,8 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
     ? buildMetricTargets(chartReport.targets, metric)
     : [];
 
+  const targetRange = showTargets && metric === 'srad' ? SRAD_NORM : undefined;
+
   if (loading) {
     return <div className="dashboard"><p className="hint">Загрузка...</p></div>;
   }
@@ -221,7 +224,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
           </label>
         </div>
         {chartSeries.length > 0
-          ? <TrendChart series={chartSeries} targetLines={targetLines} noBucket
+          ? <TrendChart series={chartSeries} targetLines={targetLines} targetRange={targetRange} noBucket
                         pointWidth={chartRange === 0 ? 14 : undefined}
                         height={150} width={340} />
           : <p className="hint">{chartEmptyHint || 'Нет данных для графика'}</p>}

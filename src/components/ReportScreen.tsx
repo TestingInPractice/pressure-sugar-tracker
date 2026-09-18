@@ -18,6 +18,7 @@ import EntryForm from './EntryForm';
 import ReminderPanel from './ReminderPanel';
 import TrendChart, { metricAvailable, buildMetricSeries, buildMetricTargets } from './TrendChart';
 import type { MetricId } from './TrendChart';
+import { SRAD_NORM } from '../logic/srad';
 
 interface Props { reportId: string; onBack: () => void; autoOpenEntry?: boolean; onEntryFormOpened?: () => void }
 
@@ -217,6 +218,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
           title: g.label.replace('График: ', ''),
           series: g.series,
           targets: printCharts.norms ? buildMetricTargets(report.targets, g.metric) : [],
+          targetRange: printCharts.norms && g.metric === 'srad' ? SRAD_NORM : undefined,
         })),
       });
       const safeName = report.name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
@@ -468,6 +470,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
                   <TrendChart
                     series={g.series}
                     targetLines={printCharts.norms ? buildMetricTargets(report.targets, g.metric) : []}
+                    targetRange={printCharts.norms && g.metric === 'srad' ? SRAD_NORM : undefined}
                     height={150} width={520}
                     printMode
                   />

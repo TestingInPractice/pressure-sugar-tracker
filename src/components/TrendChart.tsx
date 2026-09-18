@@ -532,7 +532,7 @@ export default function TrendChart({
         {/* Target range band */}
         {bandRect && (
           <rect x={bandRect.x} y={bandRect.y} width={bandRect.width} height={bandRect.height}
-                fill={accentSoftCol} rx="2" />
+                fill={accentSoftCol} rx="2" data-band="norm" />
         )}
         {/* Target lines */}
         {targetLines.map(l => (

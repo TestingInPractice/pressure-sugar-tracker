@@ -117,6 +117,7 @@ describe('TrendChart component', () => {
     );
     const band = container.querySelector('rect[fill="var(--accent-soft)"]');
     expect(band).not.toBeNull();
+    expect(container.querySelector('rect[data-band="norm"]')).not.toBeNull();
   });
 
   it('renders target lines in standout color', () => {

@@ -1152,6 +1152,7 @@ p.error {
 .col-srad {
   width: 88px;
   white-space: nowrap;
+  text-transform: none; /* СрАд — не капс, как просили */
 }
 
 /* СрАд: бейдж категории (переиспользует status-green/yellow/red как фон) */

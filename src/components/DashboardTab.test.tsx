@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeEach, vi } from 'vitest';
 import DashboardTab from './DashboardTab';
-import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import { db, putReport, putEntry, saveSettings } from '../db/db';
 import { syncAfterEntry } from '../logic/entry-sync';
 
@@ -273,17 +272,4 @@ it('chart shows no norm band on pressure segment', async () => {
   render(<DashboardTab onCreate={() => {}} />);
   await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelector('.dash-chart rect[data-band="norm"]')).toBeNull();
-});
-
-it('switcher changes chart legend labels to vd variant', async () => {
-  await seedChartReports();
-  render(
-    <BpLabelVariantProvider initialVariant="sad">
-      <DashboardTab onCreate={() => {}} />
-    </BpLabelVariantProvider>,
-  );
-  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
-  fireEvent.click(screen.getByRole('button', { name: 'ВД' }));
-  expect(await screen.findByText('ВД', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
-  expect(screen.queryByText('САД', { selector: '.trend-chart__legend-item' })).toBeNull();
 });

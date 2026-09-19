@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeEach, vi } from 'vitest';
 import MoreTab from './MoreTab';
+import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import { db, putReport, putEntry } from '../db/db';
 import { buildReportExportJson } from '../logic/report-export';
 
@@ -122,4 +123,26 @@ it('shows help section with САД/ДАД/СрАд explanation and norms', () =>
   expect(screen.getByText('СрАд = (САД + 2 × ДАД) / 3')).toBeInTheDocument();
   expect(screen.getByText(/меньше 120/)).toBeInTheDocument();
   expect(screen.getByText(/70–110/)).toBeInTheDocument();
+});
+
+it('renders BP label switcher and moves one step on click', () => {
+  render(
+    <BpLabelVariantProvider initialVariant="sad">
+      <MoreTab onDataChanged={() => {}} />
+    </BpLabelVariantProvider>,
+  );
+  const group = screen.getByRole('group', { name: 'Обозначения давления' });
+  expect(group).toBeInTheDocument();
+  const buttons = screen.getAllByRole('button');
+  const switcherIdx = buttons.findIndex(b => ['САД', 'ВД', 'SYS'].includes(b.textContent ?? ''));
+  expect(switcherIdx).toBeGreaterThanOrEqual(0);
+  const sad = buttons[switcherIdx];
+  const vd = buttons[switcherIdx + 1];
+  const sys = buttons[switcherIdx + 2];
+  expect(sad).toHaveAttribute('aria-pressed', 'true');
+
+  // клик через позицию (SYS) двигает ровно на 1 шаг → ВД
+  fireEvent.click(sys);
+  expect(vd).toHaveAttribute('aria-pressed', 'true');
+  expect(sad).toHaveAttribute('aria-pressed', 'false');
 });

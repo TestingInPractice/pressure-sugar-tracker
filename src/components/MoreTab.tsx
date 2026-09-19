@@ -3,6 +3,7 @@ import { getAllData, replaceEverything, getReport, importReportData } from '../d
 import { buildExportJson, parseImport, backupFilename, BackupError } from '../logic/backup';
 import { parseReportImport } from '../logic/report-export';
 import { CLOUDTIPS_URL } from '../constants';
+import BpLabelSwitcher from './BpLabelSwitcher';
 
 interface Props { onDataChanged: () => void }
 
@@ -81,6 +82,12 @@ export default function MoreTab({ onDataChanged }: Props) {
       </label>
       {reportError && <p className="error">{reportError}</p>}
       <p className="hint">Один отчёт из другого устройства: выберите файл, и он добавится к текущим данным. Если отчёт уже есть — замените его или добавьте копию.</p>
+      <hr />
+      <section className="more-tab__labels">
+        <p>Обозначения давления в приложении</p>
+        <BpLabelSwitcher />
+        <p className="hint">Выбранные обозначения применяются в форме записи, таблице, на графиках и в PDF.</p>
+      </section>
       <hr />
       <details className="help">
         <summary>Справка</summary>

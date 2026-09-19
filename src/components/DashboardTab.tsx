@@ -16,7 +16,6 @@ import type { ChartSeries, TargetLine, MetricId } from './TrendChart';
 import { SRAD_NORM } from '../logic/srad';
 import EntryForm from './EntryForm';
 import InstallHint from './InstallHint';
-import BpLabelSwitcher from './BpLabelSwitcher';
 import { useBpLabelVariant } from '../hooks/useBpLabelVariant';
 
 interface Props {
@@ -221,7 +220,6 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
               </button>
             ))}
           </div>
-          <BpLabelSwitcher />
           <label className="dash-chart__targets">
             <input type="checkbox" checked={showTargets} onChange={toggleTargets} />
             Норма на графике

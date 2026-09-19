@@ -140,8 +140,8 @@ describe('TrendChart component', () => {
     const { container } = render(
       <TrendChart
         series={[
-          { id: 'sys', label: 'Верхнее', points: sys },
-          { id: 'dia', label: 'Нижнее', points: dia, dashed: true, hollow: true },
+          { id: 'sys', label: 'САД', points: sys },
+          { id: 'dia', label: 'ДАД', points: dia, dashed: true, hollow: true },
         ]}
       />
     );
@@ -150,8 +150,8 @@ describe('TrendChart component', () => {
     expect(paths[1].getAttribute('stroke-dasharray')).toBe('5,3');
     const hollow = container.querySelectorAll('circle[stroke-width="3"]');
     expect(hollow.length).toBe(2);
-    expect(screen.getByText('Верхнее')).toBeInTheDocument();
-    expect(screen.getByText('Нижнее')).toBeInTheDocument();
+    expect(screen.getByText('САД')).toBeInTheDocument();
+    expect(screen.getByText('ДАД')).toBeInTheDocument();
   });
 
   it('printMode uses explicit hex colors without var() in SVG attributes', () => {
@@ -227,7 +227,7 @@ describe('metric builders', () => {
     }));
     const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
     const { container } = render(
-      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: takeLast(sys, 10) }]} noBucket />
+      <TrendChart series={[{ id: 'sys', label: 'САД', points: takeLast(sys, 10) }]} noBucket />
     );
     expect(container.querySelectorAll('circle')).toHaveLength(3);
   });
@@ -241,7 +241,7 @@ describe('metric builders', () => {
     const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
     expect(sys).toHaveLength(9);
     const { container } = render(
-      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} />
+      <TrendChart series={[{ id: 'sys', label: 'САД', points: sys }]} />
     );
     expect(container.querySelectorAll('circle')).toHaveLength(9);
   });
@@ -256,7 +256,7 @@ describe('metric builders', () => {
     const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
     expect(sys).toHaveLength(n);
     const { container } = render(
-      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} />
+      <TrendChart series={[{ id: 'sys', label: 'САД', points: sys }]} />
     );
     const circles = container.querySelectorAll('circle');
     expect(circles.length).toBeLessThan(n);
@@ -280,7 +280,7 @@ describe('metric builders', () => {
 
   it('orders points chronologically when input arrives newest-first (All period)', () => {
     const series = [{
-      id: 'sys', label: 'Верхнее',
+      id: 'sys', label: 'САД',
       points: [
         { date: new Date('2026-08-22T10:00').getTime(), value: 30, color: 'green' as const },
         { date: new Date('2026-08-21T10:00').getTime(), value: 20, color: 'green' as const },
@@ -303,10 +303,10 @@ describe('metric builders', () => {
     ];
     const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
     const { container } = render(
-      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} noBucket />
+      <TrendChart series={[{ id: 'sys', label: 'САД', points: sys }]} noBucket />
     );
     fireEvent.click(container.querySelector('circle')!);
-    expect(screen.getByText('Верхнее: 120')).toBeInTheDocument();
+    expect(screen.getByText('САД: 120')).toBeInTheDocument();
     expect(screen.getByText(/20\.08\.2026/)).toBeInTheDocument();
   });
 
@@ -316,13 +316,13 @@ describe('metric builders', () => {
     ];
     const { sys } = buildPressureSeries(entries, 'bp1', 'd1');
     const { container } = render(
-      <TrendChart series={[{ id: 'sys', label: 'Верхнее', points: sys }]} noBucket />
+      <TrendChart series={[{ id: 'sys', label: 'САД', points: sys }]} noBucket />
     );
     const circle = container.querySelector('circle')!;
     fireEvent.click(circle);
-    expect(screen.getByText('Верхнее: 120')).toBeInTheDocument();
+    expect(screen.getByText('САД: 120')).toBeInTheDocument();
     fireEvent.click(circle);
-    expect(screen.queryByText('Верхнее: 120')).toBeNull();
+    expect(screen.queryByText('САД: 120')).toBeNull();
   });
 });
 

@@ -3,6 +3,7 @@ import { it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ReportScreen from './ReportScreen';
+import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import { db, putReport, putEntry, getSyncState, putSyncState, saveSettings } from '../db/db';
 import { saveSyncFile } from '../logic/sync-file';
 import { syncAfterEntry } from '../logic/entry-sync';
@@ -540,6 +541,32 @@ it('saves personal targets via visible Мои нормы panel', async () => {
     expect((await db.reports.get('p1'))?.targets).toEqual({ sys: 120, dia: 80, pulse: undefined, sugar: undefined });
   });
   expect(screen.getByText(/САД 120 · ДАД 80/)).toBeInTheDocument();
+});
+
+it('targets summary uses vd labels when wrapped in provider', async () => {
+  await putReport({ id: 'p1', name: 'Отчёт АД', fields: [], archived: false, createdAt: 1, updatedAt: 1, targets: { sys: 120, dia: 80 } });
+  render(
+    <BpLabelVariantProvider initialVariant="vd">
+      <ReportScreen reportId="p1" onBack={() => {}} />
+    </BpLabelVariantProvider>,
+  );
+  await screen.findByRole('button', { name: '+ Запись' });
+  expect(screen.getByText('ВД 120 · НД 80')).toBeInTheDocument();
+});
+
+it('norms panel labels use en variant when wrapped in provider', async () => {
+  await seed();
+  render(
+    <BpLabelVariantProvider initialVariant="en">
+      <ReportScreen reportId="p1" onBack={() => {}} />
+    </BpLabelVariantProvider>,
+  );
+  await screen.findByRole('button', { name: '+ Запись' });
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+  expect(screen.getByLabelText('SYS')).toBeInTheDocument();
+  expect(screen.getByLabelText('DIA')).toBeInTheDocument();
+  expect(screen.getByLabelText('PULSE')).toBeInTheDocument();
+  expect(screen.getByLabelText('Сахар')).toBeInTheDocument();
 });
 
 it('bottom sheet opens from PDF icon and closes via overlay click', async () => {

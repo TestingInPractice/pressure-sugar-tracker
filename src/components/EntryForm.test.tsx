@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import EntryForm, { parseBPLegacyText } from './EntryForm';
+import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import type { Field } from '../types';
 
 function renderForm(fields: Field[]) {
@@ -23,8 +24,8 @@ describe('EntryForm', () => {
     };
     let saved: unknown;
     render(<EntryForm fields={[bp]} onSave={v => { saved = v; }} onCancel={() => {}} />);
-    fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '120' } });
-    fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText(/^САД/), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText(/^ДАД/), { target: { value: '80' } });
     fireEvent.change(screen.getByLabelText(/^П/), { target: { value: '70' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     expect(saved).toEqual({ bp1: { systolic: '120', diastolic: '80', pulse: '70' } });
@@ -55,6 +56,37 @@ describe('EntryForm', () => {
     fireEvent.change(screen.getByLabelText('Пульс'), { target: { value: '70' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     expect(saved).toEqual({ bpLegacy: { systolic: '120', diastolic: '80', pulse: '70' } });
+  });
+
+  it('renders BP labels from vd variant when wrapped in provider', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
+    };
+    render(
+      <BpLabelVariantProvider initialVariant="vd">
+        <EntryForm fields={[bp]} onSave={vi.fn()} onCancel={vi.fn()} />
+      </BpLabelVariantProvider>,
+    );
+    expect(screen.getByText('ВД / НД / П')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^ВД/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^НД/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^П$/)).toBeInTheDocument();
+  });
+
+  it('renders legacy BP labels from vd variant when wrapped in provider', () => {
+    const legacyBP: Field = {
+      id: 'bpLegacy', name: 'ВД / НД / П', type: 'text', required: false, width: 30,
+    };
+    render(
+      <BpLabelVariantProvider initialVariant="vd">
+        <EntryForm fields={[legacyBP]} onSave={vi.fn()} onCancel={vi.fn()} />
+      </BpLabelVariantProvider>,
+    );
+    expect(screen.getByText('ВД / НД / П')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^ВД/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^НД/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^П$/)).toBeInTheDocument();
   });
 });
 

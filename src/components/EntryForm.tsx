@@ -3,6 +3,13 @@ import type { Field, Entry, BPValues } from '../types';
 import { validateEntry } from '../logic/validation';
 import { numberingFieldId } from '../logic/entry-number';
 import { isBPFieldName } from '../logic/classification';
+import { useBpLabelVariant } from '../hooks/useBpLabelVariant';
+
+const BP_PART_LABEL_KEY: Record<string, 'sys' | 'dia' | 'pulse'> = {
+  systolic: 'sys',
+  diastolic: 'dia',
+  pulse: 'pulse',
+};
 
 /**
  * Парсит текстовое значение BP формата «120/80/70» или «120/80»
@@ -34,6 +41,7 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
   const [values, setValues] = useState<Entry['values']>(initial ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const numId = numberingFieldId(fields);
+  const { labels } = useBpLabelVariant();
 
   /** Определяем, является ли поле «текстовым BP» — имя содержит ВД, но тип не 'bp' и нет parts. */
   const legacyBPFields = useMemo(() => {
@@ -73,12 +81,12 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
           return (
             <div key={f.id} className="bp-group">
               <span className="bp-label">
-                {f.name}{f.required ? ' *' : ''}
+                {isBPFieldName(f.name) ? labels.name : f.name}{f.required ? ' *' : ''}
               </span>
               <div className="bp-inputs">
                 {parts.map(p => (
                   <label key={p.id} className="bp-part">
-                    {p.label}
+                    {BP_PART_LABEL_KEY[p.id] ? labels[BP_PART_LABEL_KEY[p.id]] : p.label}
                     <input inputMode="decimal" value={String(bp[p.id as keyof BPValues] ?? '')}
                            onChange={e => setBP(f.id, p.id, e.target.value)} />
                   </label>
@@ -99,12 +107,12 @@ export default function EntryForm({ fields, initial, onSave, onCancel }: Props) 
           return (
             <div key={f.id} className="bp-group">
               <span className="bp-label">
-                {f.name}{f.required ? ' *' : ''}
+                {labels.name}{f.required ? ' *' : ''}
               </span>
               <div className="bp-inputs">
                 {(['systolic', 'diastolic', 'pulse'] as const).map(part => (
                   <label key={part} className="bp-part">
-                    {part === 'systolic' ? 'САД' : part === 'diastolic' ? 'ДАД' : 'Пульс'}
+                    {part === 'systolic' ? labels.sys : part === 'diastolic' ? labels.dia : labels.pulse}
                     <input inputMode="decimal"
                            value={String((currentBP as Record<string, unknown>)[part] ?? '')}
                            onChange={e => setBP(f.id, part, e.target.value)} />

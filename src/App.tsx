@@ -8,6 +8,7 @@ import CreateReportScreen from './components/CreateReportScreen';
 import MoreTab from './components/MoreTab';
 import { useSettings } from './hooks/useSettings';
 import { useReminderEngine } from './hooks/useReminderEngine';
+import { BpLabelVariantProvider } from './hooks/useBpLabelVariant';
 import { listReports, putReport } from './db/db';
 import { APP_TITLE } from './constants';
 import type { Report } from './types';
@@ -68,7 +69,8 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <BpLabelVariantProvider>
+      <div className="app">
       <header className="app-header">
         <h1>{APP_TITLE}</h1>
         {offline && <span className="offline-pill no-print" role="status">Офлайн</span>}
@@ -120,6 +122,7 @@ export default function App() {
         <button onClick={() => goTab('archive')} aria-current={tab === 'archive'}>Архив</button>
         <button onClick={() => goTab('more')} aria-current={tab === 'more'}>Ещё</button>
       </nav>
-    </div>
+      </div>
+    </BpLabelVariantProvider>
   );
 }

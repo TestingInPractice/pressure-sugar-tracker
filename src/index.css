@@ -1515,6 +1515,13 @@ p.error {
   background: var(--btn-primary-bg-hover);
 }
 
+.segmented-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
 .trend-chart__legend {
   display: flex;
   gap: 14px;

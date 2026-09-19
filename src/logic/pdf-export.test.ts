@@ -84,6 +84,14 @@ it('includes a target range band chart in the PDF when provided', () => {
   expect(head).toBe('%PDF-');
 });
 
+it('uses bpFieldName meta for the BP column head', () => {
+  const hexSys = '<0034003a00340001001000010025002a002200010010000100310036002d00340026>';
+  const withMeta = new TextDecoder().decode(buildReportPdfBytes(report, [entry], { bpFieldName: 'SYS / DIA / PULSE' }));
+  expect(withMeta).toContain(hexSys);
+  const withoutMeta = new TextDecoder().decode(buildReportPdfBytes(report, [entry]));
+  expect(withoutMeta).not.toContain(hexSys);
+});
+
 it('does not regress PDF generation with a full page of entries (donate block forces new page)', () => {
   const manyEntries = Array.from({ length: 60 }, (_, i) => ({
     id: `e${i}`,

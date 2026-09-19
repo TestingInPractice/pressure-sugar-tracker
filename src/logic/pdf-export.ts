@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Report, Entry, BPValues } from '../types';
 import { formatCell, formatBP } from './format';
+import { isBPFieldName } from './classification';
 import type { ChartPointColor } from '../components/TrendChart';
 import regularFont from '../assets/fonts/PT_Sans-Web-Regular-subset.ttf?inline';
 import boldFont from '../assets/fonts/PT_Sans-Web-Bold-subset.ttf?inline';
@@ -23,6 +24,7 @@ export interface PdfChart {
 export interface PdfMeta {
   rangeLabel?: string;
   normsLabel?: string;
+  bpFieldName?: string;
   charts?: PdfChart[];
 }
 
@@ -222,7 +224,11 @@ export function buildReportPdfBytes(report: Report, entries: Entry[], meta?: Pdf
 
   autoTable(doc, {
     startY: y,
-    head: [fields.map(FIELD_HEAD)],
+    head: [fields.map(f =>
+      isBPFieldName(f.name) && meta?.bpFieldName
+        ? `${meta.bpFieldName}${f.unit ? `, ${f.unit}` : ''}${f.required ? ' *' : ''}`
+        : FIELD_HEAD(f),
+    )],
     body: entries.map(e =>
       fields.map(f =>
         f.type === 'bp'

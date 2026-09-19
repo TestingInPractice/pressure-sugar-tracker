@@ -4,6 +4,8 @@ import { datetimeFieldId } from '../logic/print-filter';
 import { classifyBP, classifySugar, isBPFieldName, isSugarField } from '../logic/classification';
 import type { StatusColor } from '../logic/classification';
 import { computeSrad, classifySrad, SRAD_CATEGORY_COLOR } from '../logic/srad';
+import { BP_LABEL_VARIANTS } from '../logic/bp-labels';
+import type { BpLabelVariant } from '../logic/bp-labels';
 
 /** Точки для графика: значение + цвет + дата. */
 export interface ChartPoint {
@@ -102,15 +104,21 @@ export function metricAvailable(fields: Field[], metric: MetricId): boolean {
 }
 
 /** Полные (неурезанные) серии метрики для графика. */
-export function buildMetricSeries(entries: Entry[], fields: Field[], metric: MetricId): ChartSeries[] {
+export function buildMetricSeries(
+  entries: Entry[],
+  fields: Field[],
+  metric: MetricId,
+  variant: BpLabelVariant = 'sad',
+): ChartSeries[] {
+  const labels = BP_LABEL_VARIANTS[variant];
   const dt = datetimeFieldId(fields);
   if (metric === 'bp') {
     const bp = findBPField(fields);
     if (!bp) return [];
     const { sys, dia } = buildPressureSeries(entries, bp.id, dt);
     return [
-      { id: 'sys', label: 'Верхнее', points: sys },
-      { id: 'dia', label: 'Нижнее', points: dia, dashed: true, hollow: true },
+      { id: 'sys', label: labels.chartSys, points: sys },
+      { id: 'dia', label: labels.chartDia, points: dia, dashed: true, hollow: true },
     ];
   }
   if (metric === 'pulse') {
@@ -120,7 +128,7 @@ export function buildMetricSeries(entries: Entry[], fields: Field[], metric: Met
     const pts = bp
       ? buildPulseSeries(entries, bp.id, dt, true)
       : buildPulseSeries(entries, standalone!.id, dt, false);
-    return [{ id: 'pulse', label: 'Пульс', points: pts }];
+    return [{ id: 'pulse', label: labels.chartPulse, points: pts }];
   }
   if (metric === 'srad') {
     const bp = findBPField(fields);
@@ -132,16 +140,21 @@ export function buildMetricSeries(entries: Entry[], fields: Field[], metric: Met
   return [{ id: 'sugar', label: 'Сахар', points: buildChartPoints(entries, sugar.id, sugar, dt) }];
 }
 
-export function buildMetricTargets(targets: ReportTargets | undefined, metric: MetricId): TargetLine[] {
+export function buildMetricTargets(
+  targets: ReportTargets | undefined,
+  metric: MetricId,
+  variant: BpLabelVariant = 'sad',
+): TargetLine[] {
+  const labels = BP_LABEL_VARIANTS[variant];
   if (!targets) return [];
   if (metric === 'bp') {
     const lines: TargetLine[] = [];
-    if (targets.sys !== undefined) lines.push({ id: 't-sys', label: 'Норма ВД', value: targets.sys, dashed: false });
-    if (targets.dia !== undefined) lines.push({ id: 't-dia', label: 'Норма НД', value: targets.dia });
+    if (targets.sys !== undefined) lines.push({ id: 't-sys', label: labels.normSys, value: targets.sys, dashed: false });
+    if (targets.dia !== undefined) lines.push({ id: 't-dia', label: labels.normDia, value: targets.dia });
     return lines;
   }
   if (metric === 'pulse' && targets.pulse !== undefined) {
-    return [{ id: 't-pulse', label: 'Норма пульса', value: targets.pulse, dashed: false }];
+    return [{ id: 't-pulse', label: labels.normPulse, value: targets.pulse, dashed: false }];
   }
   if (metric === 'sugar' && targets.sugar !== undefined) {
     return [{ id: 't-sugar', label: 'Норма сахара', value: targets.sugar, dashed: false }];

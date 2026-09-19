@@ -16,6 +16,8 @@ import type { ChartSeries, TargetLine, MetricId } from './TrendChart';
 import { SRAD_NORM } from '../logic/srad';
 import EntryForm from './EntryForm';
 import InstallHint from './InstallHint';
+import BpLabelSwitcher from './BpLabelSwitcher';
+import { useBpLabelVariant } from '../hooks/useBpLabelVariant';
 
 interface Props {
   onCreate: () => void;
@@ -33,6 +35,7 @@ const METRICS: { id: Metric; label: string }[] = [
 
 export default function DashboardTab({ onCreate, onGoMore }: Props) {
   const { settings } = useSettings();
+  const { variant } = useBpLabelVariant();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [quickAddReport, setQuickAddReport] = useState<Report | null>(null);
@@ -148,7 +151,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
   } else if (chartReport && !chartAvailable[metric]) {
     chartEmptyHint = `В отчёте нет данных «${METRICS.find(m => m.id === metric)?.label}»`;
   } else if (chartReport) {
-    const full = buildMetricSeries(chartEntries, chartReport.fields, metric);
+    const full = buildMetricSeries(chartEntries, chartReport.fields, metric, variant);
     chartSeries = full.map(s => ({
       ...s,
       points: chartRange === 0 ? s.points : takeLast(s.points, chartRange),
@@ -156,7 +159,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
   }
 
   const targetLines: TargetLine[] = showTargets && chartReport
-    ? buildMetricTargets(chartReport.targets, metric)
+    ? buildMetricTargets(chartReport.targets, metric, variant)
     : [];
 
   const targetRange = showTargets && metric === 'srad' ? SRAD_NORM : undefined;
@@ -218,6 +221,7 @@ export default function DashboardTab({ onCreate, onGoMore }: Props) {
               </button>
             ))}
           </div>
+          <BpLabelSwitcher />
           <label className="dash-chart__targets">
             <input type="checkbox" checked={showTargets} onChange={toggleTargets} />
             Норма на графике

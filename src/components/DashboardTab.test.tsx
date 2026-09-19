@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeEach, vi } from 'vitest';
 import DashboardTab from './DashboardTab';
+import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import { db, putReport, putEntry, saveSettings } from '../db/db';
 import { syncAfterEntry } from '../logic/entry-sync';
 
@@ -38,8 +39,8 @@ it('quick-add opens bottom sheet with prefilled datetime but empty values', asyn
   fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
   // Bottom sheet should be visible with datetime prefilled, but ВД/НД/П/Сахар empty
   expect(await screen.findByText('Давление', { selector: '.bottom-sheet__title' })).toBeInTheDocument();
-  expect(screen.getByLabelText(/^ВД/)).toHaveValue('');
-  expect(screen.getByLabelText(/^НД/)).toHaveValue('');
+  expect(screen.getByLabelText(/^САД/)).toHaveValue('');
+  expect(screen.getByLabelText(/^ДАД/)).toHaveValue('');
   expect(screen.getByLabelText(/Сахар/)).toHaveValue('');
   const dtVal = (screen.getByLabelText(/Дата и время/) as HTMLInputElement).value;
   expect(dtVal).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
@@ -50,8 +51,8 @@ it('quick-add saves a new entry', async () => {
   render(<DashboardTab onCreate={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
   await screen.findByText('Давление', { selector: '.bottom-sheet__title' });
-  fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '130' } });
-  fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '85' } });
+  fireEvent.change(screen.getByLabelText(/^САД/), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^ДАД/), { target: { value: '85' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   await waitFor(async () => {
     const rows = await db.entries.where('reportId').equals('r1').toArray();
@@ -67,8 +68,8 @@ it('quick-add calls syncAfterEntry with allowFirstSave when syncOn', async () =>
   render(<DashboardTab onCreate={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
   await screen.findByText('Давление', { selector: '.bottom-sheet__title' });
-  fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '130' } });
-  fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '85' } });
+  fireEvent.change(screen.getByLabelText(/^САД/), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^ДАД/), { target: { value: '85' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   await waitFor(() => expect(syncAfterMock).toHaveBeenCalled());
   const [rep, entries, opts] = syncAfterMock.mock.calls[0];
@@ -85,8 +86,8 @@ it('quick-add shows manual hint when syncAfterEntry returns ios-manual', async (
   render(<DashboardTab onCreate={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Добавить запись в Давление' }));
   await screen.findByText('Давление', { selector: '.bottom-sheet__title' });
-  fireEvent.change(screen.getByLabelText(/^ВД/), { target: { value: '130' } });
-  fireEvent.change(screen.getByLabelText(/^НД/), { target: { value: '85' } });
+  fireEvent.change(screen.getByLabelText(/^САД/), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^ДАД/), { target: { value: '85' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(await screen.findByText(/на iPhone файл обновите вручную/)).toBeInTheDocument();
 });
@@ -134,8 +135,8 @@ const dashChartCircles = (hollow: boolean) =>
 it('chart defaults to pressure with solid sys and outlined hollow dia points', async () => {
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
-  expect(screen.getByText('Нижнее')).toBeInTheDocument();
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
+  expect(screen.getByText('ДАД', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
   expect(dashChartCircles(false)).toHaveLength(2);
   expect(dashChartCircles(true)).toHaveLength(2);
 });
@@ -143,17 +144,17 @@ it('chart defaults to pressure with solid sys and outlined hollow dia points', a
 it('chart switches to pulse on metric change', async () => {
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   fireEvent.click(screen.getByRole('button', { name: 'Пульс' }));
   expect(await screen.findByText('Пульс', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
-  expect(screen.queryByText('Нижнее')).toBeNull();
+  expect(screen.queryByText('ДАД', { selector: '.trend-chart__legend-item' })).toBeNull();
   expect(dashChartCircles(false)).toHaveLength(2);
 });
 
 it('chart switches data on report change', async () => {
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   fireEvent.change(screen.getByLabelText('Отчёт для графика'), { target: { value: 'r2' } });
   expect(await screen.findByText(/нет данных «Давление»/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Сахар' }));
@@ -165,7 +166,7 @@ it('disables sugar metric when report has no sugar field', async () => {
   await putReport({ id: 'r1', name: 'Давление', fields: [bpField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
   await putEntry({ id: 'e1', reportId: 'r1', values: { bp1: { systolic: 120, diastolic: 80 }, d1: '2026-08-20T10:00' }, createdAt: 1 });
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(screen.getByRole('button', { name: 'Сахар' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Пульс' })).not.toBeDisabled();
 });
@@ -181,10 +182,10 @@ it('chart range Все shows all points scrollable', async () => {
     });
   }
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelectorAll('.dash-chart circle')).toHaveLength(20);
   fireEvent.click(screen.getByRole('button', { name: 'Все' }));
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelectorAll('.dash-chart circle')).toHaveLength(50);
   const svg = document.querySelector('.dash-chart .trend-chart__scroll svg');
   expect(Number(svg?.getAttribute('viewBox')?.split(' ')[2])).toBeGreaterThan(340);
@@ -200,7 +201,7 @@ it('chart shows last 10 same-day readings as separate points', async () => {
     });
   }
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelectorAll('.dash-chart circle')).toHaveLength(20);
 });
 
@@ -211,7 +212,7 @@ it('chart shows target lines when targets set and toggle on', async () => {
   });
   await putEntry({ id: 'e1', reportId: 'r1', values: { bp1: { systolic: 130, diastolic: 85 }, d1: '2026-08-20T10:00' }, createdAt: 1 });
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelectorAll('.dash-chart [data-target]')).toHaveLength(2);
   fireEvent.click(screen.getByLabelText('Норма на графике'));
   expect(document.querySelectorAll('.dash-chart [data-target]')).toHaveLength(0);
@@ -222,17 +223,17 @@ it('chart shows no target lines when targets unset', async () => {
   await putReport({ id: 'r1', name: 'Давление', fields: [bpField, dtField], archived: false, createdAt: 1, updatedAt: 1 });
   await putEntry({ id: 'e1', reportId: 'r1', values: { bp1: { systolic: 130, diastolic: 85 }, d1: '2026-08-20T10:00' }, createdAt: 1 });
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelectorAll('.dash-chart [data-target]')).toHaveLength(0);
 });
 
 it('chart switches to srad on metric change', async () => {
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
   expect(await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
-  expect(screen.queryByText('Нижнее')).toBeNull();
+  expect(screen.queryByText('ДАД', { selector: '.trend-chart__legend-item' })).toBeNull();
   expect(dashChartCircles(false)).toHaveLength(2);
 });
 
@@ -249,7 +250,7 @@ it('chart shows fixed СрАд norm band when targets toggle is on', async () =>
   localStorage.setItem('chart-show-targets', '1');
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
   await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' });
   expect(document.querySelector('.dash-chart rect[data-band="norm"]')).not.toBeNull();
@@ -259,7 +260,7 @@ it('chart hides СрАд norm band when targets toggle is off', async () => {
   localStorage.setItem('chart-show-targets', '1');
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   fireEvent.click(screen.getByRole('button', { name: 'СрАд' }));
   await screen.findByText('СрАд', { selector: '.trend-chart__legend-item' });
   fireEvent.click(screen.getByLabelText('Норма на графике'));
@@ -270,6 +271,19 @@ it('chart shows no norm band on pressure segment', async () => {
   localStorage.setItem('chart-show-targets', '1');
   await seedChartReports();
   render(<DashboardTab onCreate={() => {}} />);
-  await screen.findByText('Верхнее');
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
   expect(document.querySelector('.dash-chart rect[data-band="norm"]')).toBeNull();
+});
+
+it('switcher changes chart legend labels to vd variant', async () => {
+  await seedChartReports();
+  render(
+    <BpLabelVariantProvider initialVariant="sad">
+      <DashboardTab onCreate={() => {}} />
+    </BpLabelVariantProvider>,
+  );
+  await screen.findByText('САД', { selector: '.trend-chart__legend-item' });
+  fireEvent.click(screen.getByRole('button', { name: 'ВД' }));
+  expect(await screen.findByText('ВД', { selector: '.trend-chart__legend-item' })).toBeInTheDocument();
+  expect(screen.queryByText('САД', { selector: '.trend-chart__legend-item' })).toBeNull();
 });

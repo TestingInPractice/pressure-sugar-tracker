@@ -11,6 +11,7 @@ import { saveSyncFile } from '../logic/sync-file';
 import { buildReportExportJson, reportExportFilename, shareReportFile } from '../logic/report-export';
 import { syncAfterEntry } from '../logic/entry-sync';
 import { useSettings } from '../hooks/useSettings';
+import { useBpLabelVariant } from '../hooks/useBpLabelVariant';
 import { CLOUDTIPS_URL } from '../constants';
 import { buildReportPdf } from '../logic/pdf-export';
 import EntriesTable from './EntriesTable';
@@ -22,8 +23,7 @@ import { SRAD_NORM } from '../logic/srad';
 
 interface Props { reportId: string; onBack: () => void; autoOpenEntry?: boolean; onEntryFormOpened?: () => void }
 
-const TARGET_LABELS = { sys: 'Систолическое (САД)', dia: 'Диастолическое (ДАД)', pulse: 'Пульс', sugar: 'Сахар' } as const;
-type TargetKey = keyof typeof TARGET_LABELS;
+type TargetKey = 'sys' | 'dia' | 'pulse' | 'sugar';
 const IOS_AUTO_SYNC_HINT = 'На iPhone автосинхронизация недоступна — обновите файл кнопкой «Синхронизация»';
 
 export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryFormOpened }: Props) {
@@ -43,6 +43,13 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const [syncInfo, setSyncInfo] = useState<{ fileName: string; syncedAt: number; count: number } | null>(null);
   const [targetsDraft, setTargetsDraft] = useState<Record<TargetKey, string> | null>(null);
   const { settings, setMasterOn } = useSettings();
+  const { variant, labels } = useBpLabelVariant();
+  const targetLabels: Record<TargetKey, string> = {
+    sys: labels.sysLong,
+    dia: labels.diaLong,
+    pulse: labels.pulseLong,
+    sugar: 'Сахар',
+  };
   const autoSyncReady = useRef(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -104,7 +111,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   ];
   const printSeries = PRINT_METRICS.flatMap(m =>
     printCharts[m.id] && metricAvailable(report.fields, m.id)
-      ? [{ metric: m.id, label: m.label, series: buildMetricSeries(visibleEntries, report.fields, m.id) }]
+      ? [{ metric: m.id, label: m.label, series: buildMetricSeries(visibleEntries, report.fields, m.id, variant) }]
       : [],
   ).filter(g => g.series.some(s => s.points.length > 0));
   const setRangePart = (part: 'from' | 'to', value: string) =>
@@ -191,9 +198,9 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
   const targetsSummary = () => {
     const t = report.targets;
     const parts: string[] = [];
-    if (t?.sys !== undefined) parts.push(`САД ${t.sys}`);
-    if (t?.dia !== undefined) parts.push(`ДАД ${t.dia}`);
-    if (t?.pulse !== undefined) parts.push(`Пульс ${t.pulse}`);
+    if (t?.sys !== undefined) parts.push(`${labels.sys} ${t.sys}`);
+    if (t?.dia !== undefined) parts.push(`${labels.dia} ${t.dia}`);
+    if (t?.pulse !== undefined) parts.push(`${labels.pulse} ${t.pulse}`);
     if (t?.sugar !== undefined) parts.push(`сахар ${t.sugar}`);
     return parts.length > 0 ? parts.join(' · ') : 'Нормы не заданы';
   };
@@ -214,10 +221,11 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
       const blob = buildReportPdf(report, visibleEntries, {
         rangeLabel,
         normsLabel: norms === 'Нормы не заданы' ? undefined : norms,
+        bpFieldName: labels.name,
         charts: printSeries.map(g => ({
           title: g.label.replace('График: ', ''),
           series: g.series,
-          targets: printCharts.norms ? buildMetricTargets(report.targets, g.metric) : [],
+          targets: printCharts.norms ? buildMetricTargets(report.targets, g.metric, variant) : [],
           targetRange: printCharts.norms && g.metric === 'srad' ? SRAD_NORM : undefined,
         })),
       });
@@ -357,10 +365,10 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
             {targetsDraft ? (
               <>
                 <div className="norms-panel__fields">
-                  {(Object.keys(TARGET_LABELS) as TargetKey[]).map(k => (
+                  {(Object.keys(targetLabels) as TargetKey[]).map(k => (
                     <label key={k}>
-                      <span>{TARGET_LABELS[k]}</span>
-                      <input inputMode="decimal" aria-label={TARGET_LABELS[k]} value={targetsDraft[k]}
+                      <span>{targetLabels[k]}</span>
+                      <input inputMode="decimal" aria-label={targetLabels[k]} value={targetsDraft[k]}
                              onChange={e => setTargetsDraft({ ...targetsDraft, [k]: e.target.value })} />
                     </label>
                   ))}
@@ -469,7 +477,7 @@ export default function ReportScreen({ reportId, onBack, autoOpenEntry, onEntryF
                   <div className="print-chart__title">{g.label.replace('График: ', '')}</div>
                   <TrendChart
                     series={g.series}
-                    targetLines={printCharts.norms ? buildMetricTargets(report.targets, g.metric) : []}
+                    targetLines={printCharts.norms ? buildMetricTargets(report.targets, g.metric, variant) : []}
                     targetRange={printCharts.norms && g.metric === 'srad' ? SRAD_NORM : undefined}
                     height={150} width={520}
                     printMode

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import EntriesTable from './EntriesTable';
 import EntryForm from './EntryForm';
+import { BpLabelVariantProvider } from '../hooks/useBpLabelVariant';
 import type { Field, Entry } from '../types';
 import userEvent from '@testing-library/user-event';
 
@@ -71,6 +72,30 @@ describe('EntriesTable + EntryForm', () => {
       />,
     );
     expect(screen.getByText('120/80 70')).toBeInTheDocument();
+  });
+
+  it('renders BP column header from vd variant when wrapped in provider', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'САД / ДАД / Пульс', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'САД' }, { id: 'diastolic', label: 'ДАД' }, { id: 'pulse', label: 'Пульс' }],
+    };
+    render(
+      <BpLabelVariantProvider initialVariant="vd">
+        <EntriesTable report={{ fields: [bp] }} entries={[]} onEdit={() => {}} onDelete={() => {}} />
+      </BpLabelVariantProvider>,
+    );
+    expect(screen.getByRole('columnheader', { name: /ВД \/ НД \/ П/ })).toBeInTheDocument();
+  });
+
+  it('renders BP column header from sad default', () => {
+    const bp: Field = {
+      id: 'bp1', name: 'ВД / НД / П', type: 'bp', required: false, width: 30,
+      parts: [{ id: 'systolic', label: 'ВД' }, { id: 'diastolic', label: 'НД' }, { id: 'pulse', label: 'П' }],
+    };
+    render(
+      <EntriesTable report={{ fields: [bp] }} entries={[]} onEdit={() => {}} onDelete={() => {}} />,
+    );
+    expect(screen.getByRole('columnheader', { name: /САД \/ ДАД \/ Пульс/ })).toBeInTheDocument();
   });
 
   it('form validates required fields before save', async () => {

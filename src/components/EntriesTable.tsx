@@ -7,6 +7,7 @@ import type { StatusColor } from '../logic/classification';
 import { computeSrad, classifySrad, SRAD_CATEGORY_LABEL, SRAD_CATEGORY_COLOR } from '../logic/srad';
 import type { SradCategory } from '../logic/srad';
 import { datetimeFieldId } from '../logic/print-filter';
+import { useBpLabelVariant } from '../hooks/useBpLabelVariant';
 
 const COLOR_CLASS: Record<StatusColor, string> = {
   green: 'status-green',
@@ -82,6 +83,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
   const dtId = datetimeFieldId(report.fields);
   const firstBpIndex = fields.findIndex(f => f.type === 'bp' || isBPFieldName(f.name));
   const hasBP = firstBpIndex >= 0;
+  const { labels } = useBpLabelVariant();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -111,7 +113,7 @@ export default function EntriesTable({ report, entries, onEdit, onDelete }: Prop
           <Fragment key={f.id}>
             <th className={f.id === numId ? 'col-number' : undefined}
                 style={{ width: `${(Math.max(1, f.width ?? 1) / total) * 100}%` }}>
-              {f.name}{f.unit ? `, ${f.unit}` : ''}
+              {isBPFieldName(f.name) ? labels.name : f.name}{f.unit ? `, ${f.unit}` : ''}
               {f.required ? ' *' : ''}
             </th>
             {hasBP && i === firstBpIndex && <th className="col-srad">СрАд</th>}
